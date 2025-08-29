@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { create } from "zustand";
 import {
   getCustomers,
   getCustomerById,
@@ -7,70 +7,96 @@ import {
   deleteCustomer,
 } from "../api/customerApi";
 
-export const useCustomerStore = () => {
-  const [customers, setCustomers] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+const useCustomerStore = create((set, get) => ({
+  customers: [],
+  currentCustomer: null,
+  loading: false,
+  error: null,
+  pagination: {
+    totalItems: 0,
+    currentPage: 1,
+    pageSize: 10,
+    totalPages: 0,
+    hasNext: false,
+    hasPrevious: false,
+  },
 
-  const fetchCustomers = async (params) => {
-    setLoading(true);
-    setError(null);
+  fetchCustomers: async (params = {}) => {
+    set({ loading: true, error: null });
     try {
-      const res = await getCustomers(params);
-      setCustomers(res.data);
+      const response = await getCustomers(params);
+      set({
+        customers: response.data,
+        pagination: response.pagination,
+        loading: false,
+      });
     } catch (err) {
-      setError(err);
-    } finally {
-      setLoading(false);
+      set({ error: err.message, loading: false });
     }
-  };
+  },
 
-  const addCustomer = async (data) => {
-    setLoading(true);
-    setError(null);
+  fetchCustomerById: async (id) => {
+    set({ loading: true, error: null });
+    try {
+      const customer = await getCustomerById(id);
+      set({ currentCustomer: customer, loading: false });
+      return customer;
+    } catch (err) {
+      set({ error: err.message, loading: false });
+      throw err;
+    }
+  },
+
+  addCustomer: async (data) => {
+    set({ loading: true, error: null });
     try {
       await createCustomer(data);
-      await fetchCustomers();
+      // Refresh the current page
+      const { pagination } = get();
+      await get().fetchCustomers({
+        page: pagination.currentPage,
+        limit: pagination.pageSize,
+      });
     } catch (err) {
-      setError(err);
-    } finally {
-      setLoading(false);
+      set({ error: err.message, loading: false });
+      throw err;
     }
-  };
+  },
 
-  const editCustomer = async (id, data) => {
-    setLoading(true);
-    setError(null);
+  editCustomer: async (id, data) => {
+    set({ loading: true, error: null });
     try {
       await updateCustomer(id, data);
-      await fetchCustomers();
+      // Refresh the current page
+      const { pagination } = get();
+      await get().fetchCustomers({
+        page: pagination.currentPage,
+        limit: pagination.pageSize,
+      });
     } catch (err) {
-      setError(err);
-    } finally {
-      setLoading(false);
+      set({ error: err.message, loading: false });
+      throw err;
     }
-  };
+  },
 
-  const removeCustomer = async (id) => {
-    setLoading(true);
-    setError(null);
+  removeCustomer: async (id) => {
+    set({ loading: true, error: null });
     try {
       await deleteCustomer(id);
-      await fetchCustomers();
+      // Refresh the current page
+      const { pagination } = get();
+      await get().fetchCustomers({
+        page: pagination.currentPage,
+        limit: pagination.pageSize,
+      });
     } catch (err) {
-      setError(err);
-    } finally {
-      setLoading(false);
+      set({ error: err.message, loading: false });
+      throw err;
     }
-  };
+  },
 
-  return {
-    customers,
-    loading,
-    error,
-    fetchCustomers,
-    addCustomer,
-    editCustomer,
-    removeCustomer,
-  };
-};
+  clearError: () => set({ error: null }),
+  clearCurrentCustomer: () => set({ currentCustomer: null }),
+}));
+
+export default useCustomerStore;

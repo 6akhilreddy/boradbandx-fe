@@ -8,12 +8,18 @@ const Layout = ({ children }) => {
       <Navbar />
 
       {/* Sidebar & Content Wrapper */}
-      <div className="flex">
+      <div className="flex w-full h-full overflow-hidden">
         {/* Sidebar Below Navbar */}
         <Sidebar />
 
         {/* Main Content Area */}
-        <div className="flex-1 p-6">{children}</div>
+        <div className="flex-1 overflow-auto">
+          <div className="p-2 sm:p-4 pb-20 sm:pb-4 min-w-0">
+            <div className="max-w-7xl mx-auto w-full">
+              {children}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

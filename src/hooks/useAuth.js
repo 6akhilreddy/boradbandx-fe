@@ -1,38 +1,78 @@
 import { useState, useEffect } from "react";
 import { jwtDecode } from "jwt-decode";
+import useUserStore from "../store/userStore";
 
 const useAuth = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const { user, token } = useUserStore();
+  const logoutUser = useUserStore((state) => state.logout);
+  const isAuthenticated = useUserStore((state) => state.isAuthenticated);
 
   useEffect(() => {
     const checkAuth = () => {
-      const token = localStorage.getItem("token");
-
-      if (token) {
-        try {
+      try {
+        if (token && user) {
           const decoded = jwtDecode(token);
 
           // Check if token is expired
           if (decoded.exp * 1000 > Date.now()) {
-            setIsAuthenticated(true);
+            // Token is valid, user is authenticated
+            setLoading(false);
           } else {
-            localStorage.removeItem("token"); // Remove expired token
-            setIsAuthenticated(false);
+            // Token expired, clear everything
+            console.log("Token expired, logging out");
+            logoutUser();
+            setLoading(false);
           }
-        } catch (error) {
-          console.error("Invalid token:", error);
-          localStorage.removeItem("token"); // Remove invalid token
-          setIsAuthenticated(false);
+        } else {
+          // No token or user, not authenticated
+          setLoading(false);
         }
-      } else {
-        setIsAuthenticated(false);
+      } catch (error) {
+        console.error("Invalid token:", error);
+        logoutUser();
+        setLoading(false);
       }
     };
 
     checkAuth();
-  }, []);
+  }, [token, user, logoutUser]);
 
-  return isAuthenticated;
+  const login = (userData, token) => {
+    // This is handled by the userStore setUser method
+    console.log("Login called with:", userData.roleCode);
+  };
+
+  const logout = () => {
+    logoutUser();
+  };
+
+  const hasPermission = (permission) => {
+    if (!user || !user.allowedFeatures) return false;
+    return user.allowedFeatures.includes(permission);
+  };
+
+  const hasRole = (role) => {
+    if (!user || !user.roleCode) return false;
+    return user.roleCode === role;
+  };
+
+  const isSuperAdmin = () => hasRole("SUPER_ADMIN");
+  const isAdmin = () => hasRole("ADMIN");
+  const isAgent = () => hasRole("AGENT");
+
+  return {
+    isAuthenticated: isAuthenticated,
+    user,
+    loading,
+    login,
+    logout,
+    hasPermission,
+    hasRole,
+    isSuperAdmin,
+    isAdmin,
+    isAgent,
+  };
 };
 
 export default useAuth;

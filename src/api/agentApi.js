@@ -2,7 +2,7 @@ import axiosInstance from "./axiosInstance";
 import { URLS } from "../config/urls";
 import useUserStore from "../store/userStore";
 
-export const getCustomers = async (params = {}) => {
+export const getAgents = async (params = {}) => {
   try {
     // Get user's company ID for filtering
     const { getCompanyId, getRoleCode } = useUserStore.getState();
@@ -14,25 +14,25 @@ export const getCustomers = async (params = {}) => {
       params.companyId = companyId;
     }
 
-    const response = await axiosInstance.get(URLS.CUSTOMERS, { params });
+    const response = await axiosInstance.get(URLS.AGENTS, { params });
     return response.data;
   } catch (error) {
-    console.error("Get customers failed:", error);
+    console.error("Get agents failed:", error);
     throw error;
   }
 };
 
-export const getCustomerById = async (id) => {
+export const getAgentById = async (id) => {
   try {
-    const response = await axiosInstance.get(`${URLS.CUSTOMERS}/${id}`);
+    const response = await axiosInstance.get(`${URLS.AGENTS}/${id}`);
     return response.data;
   } catch (error) {
-    console.error("Get customer by id failed:", error);
+    console.error("Get agent by id failed:", error);
     throw error;
   }
 };
 
-export const createCustomer = async (data) => {
+export const createAgent = async (data) => {
   try {
     // Get user's company ID for automatic assignment
     const { getCompanyId, getRoleCode } = useUserStore.getState();
@@ -41,36 +41,33 @@ export const createCustomer = async (data) => {
 
     // Add company ID for non-super admin users
     if (roleCode !== "SUPER_ADMIN" && companyId) {
-      data.customer = {
-        ...data.customer,
-        companyId: companyId,
-      };
+      data.companyId = companyId;
     }
 
-    const response = await axiosInstance.post(URLS.CUSTOMERS, data);
+    const response = await axiosInstance.post(URLS.AGENTS, data);
     return response.data;
   } catch (error) {
-    console.error("Create customer failed:", error);
+    console.error("Create agent failed:", error);
     throw error;
   }
 };
 
-export const updateCustomer = async (id, data) => {
+export const updateAgent = async (id, data) => {
   try {
-    const response = await axiosInstance.put(`${URLS.CUSTOMERS}/${id}`, data);
+    const response = await axiosInstance.put(`${URLS.AGENTS}/${id}`, data);
     return response.data;
   } catch (error) {
-    console.error("Update customer failed:", error);
+    console.error("Update agent failed:", error);
     throw error;
   }
 };
 
-export const deleteCustomer = async (id) => {
+export const deleteAgent = async (id) => {
   try {
-    const response = await axiosInstance.delete(`${URLS.CUSTOMERS}/${id}`);
+    const response = await axiosInstance.delete(`${URLS.AGENTS}/${id}`);
     return response.data;
   } catch (error) {
-    console.error("Delete customer failed:", error);
+    console.error("Delete agent failed:", error);
     throw error;
   }
 };

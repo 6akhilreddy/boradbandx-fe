@@ -16,6 +16,5 @@ export const login = async (phone, password) => {
 };
 
 export const logout = () => {
-  localStorage.removeItem("token");
   localStorage.removeItem("user-store");
 };

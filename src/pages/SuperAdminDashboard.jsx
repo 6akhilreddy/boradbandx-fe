@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
+import { useNavigate } from "react-router-dom";
 import useCompanyStore from "../store/companyStore";
 import useAdminStore from "../store/adminStore";
+import useUserStore from "../store/userStore";
+import { logout } from "../api/authApi";
 import Spinner from "../components/Spinner";
 import {
   Plus,
@@ -14,10 +17,14 @@ import {
   ToggleLeft,
   ToggleRight,
   Search,
+  LogOut,
 } from "lucide-react";
 
 // Super Admin Dashboard
 const SuperAdminDashboard = () => {
+  const navigate = useNavigate();
+  const { clearUser } = useUserStore();
+  
   const {
     companies,
     loading: companyLoading,
@@ -67,6 +74,12 @@ const SuperAdminDashboard = () => {
   const refreshCompanies = () => {
     fetchCompanies();
     if (expandedCompany) fetchAdmins(expandedCompany);
+  };
+
+  const handleLogout = () => {
+    logout();
+    clearUser();
+    navigate("/login", { replace: true });
   };
 
   // Expand company row to show admins
@@ -223,12 +236,12 @@ const SuperAdminDashboard = () => {
                 Add Company
               </button>
               <button
-                onClick={refreshCompanies}
-                className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-indigo-700 hover:bg-indigo-100 active:scale-[0.98] transition"
-                title="Refresh"
+                onClick={handleLogout}
+                className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-red-700 hover:bg-red-100 active:scale-[0.98] transition"
+                title="Logout"
               >
-                <RefreshCw className="w-4 h-4" />
-                Refresh
+                <LogOut className="w-4 h-4" />
+                Logout
               </button>
             </div>
           </div>

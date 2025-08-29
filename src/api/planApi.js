@@ -2,7 +2,7 @@ import axiosInstance from "./axiosInstance";
 import { URLS } from "../config/urls";
 import useUserStore from "../store/userStore";
 
-export const getCustomers = async (params = {}) => {
+export const getPlans = async (params = {}) => {
   try {
     // Get user's company ID for filtering
     const { getCompanyId, getRoleCode } = useUserStore.getState();
@@ -14,25 +14,25 @@ export const getCustomers = async (params = {}) => {
       params.companyId = companyId;
     }
 
-    const response = await axiosInstance.get(URLS.CUSTOMERS, { params });
+    const response = await axiosInstance.get(URLS.PLANS, { params });
     return response.data;
   } catch (error) {
-    console.error("Get customers failed:", error);
+    console.error("Get plans failed:", error);
     throw error;
   }
 };
 
-export const getCustomerById = async (id) => {
+export const getPlanById = async (id) => {
   try {
-    const response = await axiosInstance.get(`${URLS.CUSTOMERS}/${id}`);
+    const response = await axiosInstance.get(`${URLS.PLANS}/${id}`);
     return response.data;
   } catch (error) {
-    console.error("Get customer by id failed:", error);
+    console.error("Get plan by id failed:", error);
     throw error;
   }
 };
 
-export const createCustomer = async (data) => {
+export const createPlan = async (data) => {
   try {
     // Get user's company ID for automatic assignment
     const { getCompanyId, getRoleCode } = useUserStore.getState();
@@ -41,36 +41,33 @@ export const createCustomer = async (data) => {
 
     // Add company ID for non-super admin users
     if (roleCode !== "SUPER_ADMIN" && companyId) {
-      data.customer = {
-        ...data.customer,
-        companyId: companyId,
-      };
+      data.companyId = companyId;
     }
 
-    const response = await axiosInstance.post(URLS.CUSTOMERS, data);
+    const response = await axiosInstance.post(URLS.PLANS, data);
     return response.data;
   } catch (error) {
-    console.error("Create customer failed:", error);
+    console.error("Create plan failed:", error);
     throw error;
   }
 };
 
-export const updateCustomer = async (id, data) => {
+export const updatePlan = async (id, data) => {
   try {
-    const response = await axiosInstance.put(`${URLS.CUSTOMERS}/${id}`, data);
+    const response = await axiosInstance.put(`${URLS.PLANS}/${id}`, data);
     return response.data;
   } catch (error) {
-    console.error("Update customer failed:", error);
+    console.error("Update plan failed:", error);
     throw error;
   }
 };
 
-export const deleteCustomer = async (id) => {
+export const deletePlan = async (id) => {
   try {
-    const response = await axiosInstance.delete(`${URLS.CUSTOMERS}/${id}`);
+    const response = await axiosInstance.delete(`${URLS.PLANS}/${id}`);
     return response.data;
   } catch (error) {
-    console.error("Delete customer failed:", error);
+    console.error("Delete plan failed:", error);
     throw error;
   }
 };
