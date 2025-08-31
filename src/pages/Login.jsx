@@ -77,8 +77,7 @@ const Login = () => {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-500 p-4">
         <div className="bg-white p-8 shadow-2xl rounded-2xl w-full max-w-md text-center">
-          <Spinner />
-          <p className="mt-4 text-gray-600">Redirecting to dashboard...</p>
+          <Spinner loadingTxt="Redirecting to dashboard..." size="medium" />
         </div>
       </div>
     );
@@ -164,30 +163,26 @@ const Login = () => {
             </div>
           )}
 
-          {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="bg-indigo-600 text-white py-3 px-4 rounded-md font-medium hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {isLoading ? (
-              <div className="flex items-center justify-center">
-                <Spinner className="w-5 h-5 mr-2" />
-                Signing in...
-              </div>
-            ) : (
-              "Sign In"
-            )}
-          </button>
+          {/* Submit Button or Loading Spinner */}
+          {isLoading ? (
+            <div className="flex justify-center py-3">
+              <Spinner loadingTxt="Signing in..." size="medium" />
+            </div>
+          ) : (
+            <button
+              type="submit"
+              className="bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500 text-white py-3 px-4 rounded-md font-medium hover:from-purple-600 hover:via-blue-600 hover:to-cyan-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-all duration-200 shadow-md hover:shadow-lg cursor-pointer"
+            >
+              Sign In
+            </button>
+          )}
         </form>
 
         {/* Demo Credentials */}
         <div className="mt-6 p-4 bg-gray-50 rounded-lg">
           <h3 className="text-sm font-medium text-gray-700 mb-2">Demo Credentials:</h3>
           <div className="text-xs text-gray-600 space-y-1">
-            <div><strong>Super Admin:</strong> 0000000000 / supersecret123</div>
             <div><strong>Admin:</strong> 1111111111 / adminpass123</div>
-            <div><strong>Agent:</strong> 22222222201 / agentpass123</div>
           </div>
         </div>
       </div>

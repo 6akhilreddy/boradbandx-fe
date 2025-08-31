@@ -42,7 +42,7 @@ const ProtectedRoute = ({
     console.log("User data not loaded, showing loading");
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <Spinner />
+        <Spinner loadingTxt="Loading..." size="medium" />
       </div>
     );
   }

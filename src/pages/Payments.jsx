@@ -13,7 +13,6 @@ import {
   Filter
 } from 'lucide-react';
 import { searchCustomers, getCustomerPaymentDetails, recordPayment } from '../api/paymentApi';
-import { getAreas } from '../api/reportApi';
 import useApiLoading from '../hooks/useApiLoading';
 import Spinner from '../components/Spinner';
 import Layout from '../components/Layout';
@@ -21,13 +20,13 @@ import Layout from '../components/Layout';
 const Payments = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
-  const loading = useApiLoading();
+  const apiLoading = useApiLoading();
   
   // State for customer search
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedArea, setSelectedArea] = useState('');
   const [customers, setCustomers] = useState([]);
   const [showCustomerSearch, setShowCustomerSearch] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
   
   // State for selected customer
   const [selectedCustomer, setSelectedCustomer] = useState(null);
@@ -41,8 +40,7 @@ const Payments = () => {
     comments: ''
   });
   
-  // State for areas
-  const [areas, setAreas] = useState([]);
+
   
   // State for success alert
   const [showSuccessAlert, setShowSuccessAlert] = useState(false);
@@ -51,20 +49,12 @@ const Payments = () => {
   const preSelectedCustomerId = searchParams.get('customerId');
 
   useEffect(() => {
-    loadAreas();
     if (preSelectedCustomerId) {
       loadCustomerDetails(preSelectedCustomerId);
     }
   }, [preSelectedCustomerId]);
 
-  const loadAreas = async () => {
-    try {
-      const response = await getAreas();
-      setAreas(response.data);
-    } catch (error) {
-      console.error('Failed to load areas:', error);
-    }
-  };
+
 
   const loadCustomerDetails = async (customerId) => {
     try {
@@ -80,13 +70,15 @@ const Payments = () => {
     if (!searchQuery.trim()) return;
     
     try {
+      setSearchLoading(true);
       const params = { query: searchQuery };
-      if (selectedArea) params.areaId = selectedArea;
       
       const response = await searchCustomers(params);
       setCustomers(response.data);
     } catch (error) {
       console.error('Failed to search customers:', error);
+    } finally {
+      setSearchLoading(false);
     }
   };
 
@@ -94,7 +86,6 @@ const Payments = () => {
     setSelectedCustomer(customer);
     setShowCustomerSearch(false);
     setSearchQuery('');
-    setSelectedArea('');
     setCustomers([]);
     await loadCustomerDetails(customer.id);
   };
@@ -186,8 +177,14 @@ const Payments = () => {
     });
   };
 
-  if (loading) {
-    return <Spinner />;
+  if (apiLoading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <Spinner loadingTxt="Loading payments..." size="large" />
+        </div>
+      </Layout>
+    );
   }
 
   return (
@@ -222,7 +219,7 @@ const Payments = () => {
               <h3 className="text-lg font-semibold text-gray-900">Select Customer</h3>
               <button
                 onClick={() => setShowCustomerSearch(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500 text-white rounded-lg text-sm font-medium hover:from-purple-600 hover:via-blue-600 hover:to-cyan-600 transition-all duration-200 shadow-md hover:shadow-lg cursor-pointer"
               >
                 <Search className="w-4 h-4" />
                 Select Customer
@@ -253,7 +250,7 @@ const Payments = () => {
                 <p className="text-gray-600 mb-4">Select a customer to record payment</p>
                 <button
                   onClick={() => setShowCustomerSearch(true)}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+                  className="px-4 py-2 bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500 text-white rounded-lg text-sm font-medium hover:from-purple-600 hover:via-blue-600 hover:to-cyan-600 transition-all duration-200 shadow-md hover:shadow-lg cursor-pointer"
                 >
                   Select Customer
                 </button>
@@ -307,8 +304,7 @@ const Payments = () => {
                   </>
                 ) : (
                   <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 text-center">
-                    <User className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                    <p className="text-gray-500">Loading customer details...</p>
+                    <Spinner loadingTxt="Loading customer details..." size="medium" />
                   </div>
                 )}
               </div>
@@ -427,10 +423,10 @@ const Payments = () => {
                     {/* Record Button */}
                     <button
                       onClick={handleRecordPayment}
-                      disabled={loading || !paymentForm.amount}
-                      className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      disabled={apiLoading || !paymentForm.amount}
+                      className="w-full bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500 text-white py-3 px-4 rounded-lg hover:from-purple-600 hover:via-blue-600 hover:to-cyan-600 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-all duration-200 shadow-md hover:shadow-lg cursor-pointer"
                     >
-                      {loading ? (
+                      {apiLoading ? (
                         <Spinner size="sm" />
                       ) : (
                         <>
@@ -454,15 +450,14 @@ const Payments = () => {
                 <h3 className="text-lg font-semibold text-gray-900">
                   Select Customer
                 </h3>
-                <button
-                  onClick={() => {
-                    setShowCustomerSearch(false);
-                    setSearchQuery('');
-                    setSelectedArea('');
-                    setCustomers([]);
-                  }}
-                  className="p-2 bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 rounded-lg transition-colors cursor-pointer"
-                >
+                                  <button
+                    onClick={() => {
+                      setShowCustomerSearch(false);
+                      setSearchQuery('');
+                      setCustomers([]);
+                    }}
+                    className="p-2 bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 rounded-lg transition-colors cursor-pointer"
+                  >
                   <X className="w-5 h-5" />
                 </button>
               </div>
@@ -491,29 +486,15 @@ const Payments = () => {
                   </div>
                 </div>
 
-                {/* Area Filter */}
-                <div className="mb-6">
-                  <div className="flex gap-2">
-                    <div className="flex-1">
-                      <select
-                        value={selectedArea}
-                        onChange={(e) => setSelectedArea(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      >
-                        <option value="">All Areas</option>
-                        {areas.map((area) => (
-                          <option key={area.id} value={area.id}>
-                            {area.areaName}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                </div>
+
 
                 {/* Search Results */}
                 <div className="max-h-96 overflow-y-auto">
-                  {customers.length === 0 ? (
+                  {searchLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Spinner loadingTxt="Searching customers..." size="medium" />
+                    </div>
+                  ) : customers.length === 0 ? (
                     <div className="text-center py-8 text-gray-500">
                       {searchQuery ? 'No customers found. Try a different search term.' : 'Enter a search term to find customers.'}
                     </div>
@@ -531,7 +512,7 @@ const Payments = () => {
                               <div className="text-sm text-gray-600">
                                 Code: {customer.customerCode} | Phone: {customer.phone}
                               </div>
-                              <div className="text-sm text-gray-500">{customer.areaName || 'No area assigned'}</div>
+                              <div className="text-sm text-gray-500">{customer.areaName || customer.area || 'No area assigned'}</div>
                             </div>
                             <div className="text-right">
                               <div className="text-sm font-medium text-gray-900">₹{customer.balanceAmount || 0}</div>

@@ -4,6 +4,8 @@ import { useForm } from "react-hook-form";
 import Layout from "../components/Layout";
 import useAgentStore from "../store/agentStore";
 import Spinner from "../components/Spinner";
+import useApiLoading from "../hooks/useApiLoading";
+import Alert from "../components/Alert";
 import {
   Search,
   Plus,
@@ -24,6 +26,7 @@ const Agents = () => {
     editAgent,
     clearError,
   } = useAgentStore();
+  const apiLoading = useApiLoading();
 
   // filters
   const [search, setSearch] = useState("");
@@ -34,6 +37,8 @@ const Agents = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingAgent, setEditingAgent] = useState(null);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [alert, setAlert] = useState({ show: false, type: "success", message: "" });
+  const [buttonLoading, setButtonLoading] = useState(false);
 
   // form hooks
   const {
@@ -51,13 +56,7 @@ const Agents = () => {
     formState: { errors: editErrors },
   } = useForm();
 
-  // initial fetch
-  useEffect(() => {
-    fetchAgents();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // debounced fetch when filters change
+  // Combined fetch with debouncing
   useEffect(() => {
     const t = setTimeout(() => {
       fetchAgents({
@@ -70,23 +69,33 @@ const Agents = () => {
   }, [search, statusFilter]);
 
   const handleAddAgent = async (data) => {
+    setButtonLoading(true);
     try {
       await addAgent(data);
       setShowAddModal(false);
       resetAdd();
+      setAlert({ show: true, type: "success", message: "Agent added successfully!" });
     } catch (error) {
       console.error("Failed to add agent:", error);
+      setAlert({ show: true, type: "error", message: "Failed to add agent. Please try again." });
+    } finally {
+      setButtonLoading(false);
     }
   };
 
   const handleEditAgent = async (data) => {
+    setButtonLoading(true);
     try {
       await editAgent(editingAgent.id, data);
       setShowEditModal(false);
       setEditingAgent(null);
       resetEdit();
+      setAlert({ show: true, type: "success", message: "Agent updated successfully!" });
     } catch (error) {
       console.error("Failed to edit agent:", error);
+      setAlert({ show: true, type: "error", message: "Failed to update agent. Please try again." });
+    } finally {
+      setButtonLoading(false);
     }
   };
 
@@ -107,7 +116,7 @@ const Agents = () => {
   return (
     <Layout>
       {/* Header (stack on mobile) */}
-      <div className="mt-2 mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between min-w-0">
+      <div className="mt-2 mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between min-w-0">
         <h2 className="text-2xl font-bold sm:truncate">Agents</h2>
         <button
           onClick={() => setShowAddModal(true)}
@@ -124,7 +133,7 @@ const Agents = () => {
       </div>
 
       {/* Search & Filters */}
-      <div className="bg-white p-3 rounded-xl shadow mb-2">
+      <div className="bg-white p-4 rounded-xl shadow mb-4">
         {/* Desktop Layout */}
         <div className="hidden lg:flex flex-row gap-3 items-center">
           {/* Search */}
@@ -234,15 +243,24 @@ const Agents = () => {
         </div>
       )}
 
+      {/* Alert Messages */}
+      {alert.show && (
+        <Alert
+          type={alert.type}
+          message={alert.message}
+          onClose={() => setAlert({ show: false, type: "success", message: "" })}
+        />
+      )}
+
       {/* Data */}
-      {loading ? (
-        <Spinner loadingTxt="Loading agents..." />
+      {(loading || apiLoading) ? (
+        <Spinner loadingTxt="Loading agents..." size="large" />
       ) : (
         <>
           {/* Desktop Table Layout */}
           <div className="hidden lg:block">
             {/* Desktop Header Row */}
-            <div className="bg-white rounded-xl shadow-sm overflow-hidden mb-1">
+            <div className="bg-white rounded-xl shadow-sm overflow-hidden mb-3">
               <div className="overflow-x-auto max-w-full">
                 <div className="grid grid-cols-7 gap-4 px-6 py-4 bg-gray-50 w-full">
                   <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider">NAME</div>
@@ -257,7 +275,7 @@ const Agents = () => {
             </div>
 
             {/* Desktop Data Rows */}
-            <div className="space-y-2 w-full">
+            <div className="space-y-3 w-full">
               {agents.length === 0 ? (
                 <div className="bg-white rounded-xl shadow-sm p-6 text-center text-gray-500">
                   No agents found
@@ -424,7 +442,7 @@ const Agents = () => {
 
       {/* Add Agent Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-200">
               <h3 className="text-lg font-semibold text-gray-900">Add New Agent</h3>
@@ -517,15 +535,18 @@ const Agents = () => {
                 >
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-lg text-white shadow-md
-                             bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500
-                             hover:from-purple-600 hover:to-cyan-600
-                             transition-transform hover:scale-[1.02] cursor-pointer"
-                >
-                  Add Agent
-                </button>
+                {buttonLoading ? (
+                  <div className="px-4 py-2 flex items-center justify-center">
+                    <Spinner loadingTxt="Adding..." size="small" />
+                  </div>
+                ) : (
+                  <button
+                    type="submit"
+                    className="px-4 py-2 rounded-lg text-white shadow-md bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500 hover:from-purple-600 hover:to-cyan-600 transition-transform hover:scale-[1.02] cursor-pointer"
+                  >
+                    Add Agent
+                  </button>
+                )}
               </div>
             </form>
           </div>
@@ -534,7 +555,7 @@ const Agents = () => {
 
       {/* Edit Agent Modal */}
       {showEditModal && editingAgent && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-200">
               <h3 className="text-lg font-semibold text-gray-900">Edit Agent</h3>
@@ -608,15 +629,18 @@ const Agents = () => {
                 >
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-lg text-white shadow-md
-                             bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500
-                             hover:from-purple-600 hover:to-cyan-600
-                             transition-transform hover:scale-[1.02] cursor-pointer"
-                >
-                  Update Agent
-                </button>
+                {buttonLoading ? (
+                  <div className="px-4 py-2 flex items-center justify-center">
+                    <Spinner loadingTxt="Updating..." size="small" />
+                  </div>
+                ) : (
+                  <button
+                    type="submit"
+                    className="px-4 py-2 rounded-lg text-white shadow-md bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500 hover:from-purple-600 hover:to-cyan-600 transition-transform hover:scale-[1.02] cursor-pointer"
+                  >
+                    Update Agent
+                  </button>
+                )}
               </div>
             </form>
           </div>

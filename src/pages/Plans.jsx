@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
 import usePlanStore from "../store/planStore";
 import Spinner from "../components/Spinner";
+import useApiLoading from "../hooks/useApiLoading";
+import Alert from "../components/Alert";
 import {
   Search,
   Plus,
@@ -22,6 +24,7 @@ const Plans = () => {
     editPlan,
     clearError,
   } = usePlanStore();
+  const apiLoading = useApiLoading();
 
   // filters
   const [search, setSearch] = useState("");
@@ -33,21 +36,17 @@ const Plans = () => {
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [newPlan, setNewPlan] = useState({
     name: "",
-    monthlyPrice: 0,
+    monthlyPrice: "",
     gstRate: 18,
     code: "",
     benefits: "",
     isActive: true,
   });
   const [editingPlan, setEditingPlan] = useState(null);
+  const [alert, setAlert] = useState({ show: false, type: "success", message: "" });
+  const [buttonLoading, setButtonLoading] = useState(false);
 
-  // initial fetch
-  useEffect(() => {
-    fetchPlans();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // debounced fetch when filters change
+  // Combined fetch with debouncing
   useEffect(() => {
     const t = setTimeout(() => {
       fetchPlans({
@@ -61,30 +60,58 @@ const Plans = () => {
 
   const handleAddPlan = async (e) => {
     e.preventDefault();
-    await addPlan(newPlan);
-    setShowAddModal(false);
-    setNewPlan({
-      name: "",
-      monthlyPrice: 0,
-      gstRate: 18,
-      code: "",
-      benefits: "",
-      isActive: true,
-    });
+    setButtonLoading(true);
+    try {
+      // Convert monthlyPrice to number for submission
+      const planData = {
+        ...newPlan,
+        monthlyPrice: parseFloat(newPlan.monthlyPrice) || 0
+      };
+      await addPlan(planData);
+      setShowAddModal(false);
+      setNewPlan({
+        name: "",
+        monthlyPrice: "",
+        gstRate: 18,
+        code: "",
+        benefits: "",
+        isActive: true,
+      });
+      setAlert({ show: true, type: "success", message: "Plan added successfully!" });
+    } catch (error) {
+      console.error('Error adding plan:', error);
+      setAlert({ show: true, type: "error", message: "Failed to add plan. Please try again." });
+    } finally {
+      setButtonLoading(false);
+    }
   };
 
   const handleEditPlan = async (e) => {
     e.preventDefault();
-    await editPlan(editingPlan.id, editingPlan);
-    setShowEditModal(false);
-    setEditingPlan(null);
+    setButtonLoading(true);
+    try {
+      // Convert monthlyPrice to number for submission
+      const planData = {
+        ...editingPlan,
+        monthlyPrice: parseFloat(editingPlan.monthlyPrice) || 0
+      };
+      await editPlan(editingPlan.id, planData);
+      setShowEditModal(false);
+      setEditingPlan(null);
+      setAlert({ show: true, type: "success", message: "Plan updated successfully!" });
+    } catch (error) {
+      console.error('Error updating plan:', error);
+      setAlert({ show: true, type: "error", message: "Failed to update plan. Please try again." });
+    } finally {
+      setButtonLoading(false);
+    }
   };
 
   const openEditModal = (plan) => {
     setEditingPlan({
       id: plan.id,
       name: plan.name,
-      monthlyPrice: plan.monthlyPrice,
+      monthlyPrice: plan.monthlyPrice || "",
       gstRate: plan.gstRate,
       code: plan.code,
       benefits: plan.benefits,
@@ -101,14 +128,14 @@ const Plans = () => {
   return (
     <Layout>
       {/* Header (stack on mobile) */}
-      <div className="mt-2 mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between min-w-0">
+      <div className="mt-2 mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between min-w-0">
         <h2 className="text-2xl font-bold sm:truncate">Plans</h2>
         <button
           onClick={() => setShowAddModal(true)}
           className="w-full sm:w-auto justify-center text-white px-4 py-2 rounded-lg shadow-md
                      bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500
                      hover:from-purple-600 hover:to-cyan-600
-                     transition-transform hover:scale-[1.02] text-sm sm:text-base"
+                     transition-transform hover:scale-[1.02] text-sm sm:text-base cursor-pointer"
         >
           <span className="inline-flex items-center gap-2">
             <Plus className="w-4 h-4" />
@@ -118,7 +145,7 @@ const Plans = () => {
       </div>
 
       {/* Search & Filters */}
-      <div className="bg-white p-3 rounded-xl shadow mb-2">
+      <div className="bg-white p-4 rounded-xl shadow mb-4">
         {/* Desktop Layout */}
         <div className="hidden lg:flex flex-row gap-3 items-center">
           {/* Search */}
@@ -228,15 +255,24 @@ const Plans = () => {
         </div>
       )}
 
+      {/* Alert Messages */}
+      {alert.show && (
+        <Alert
+          type={alert.type}
+          message={alert.message}
+          onClose={() => setAlert({ show: false, type: "success", message: "" })}
+        />
+      )}
+
       {/* Data */}
-      {loading ? (
-        <Spinner loadingTxt="Loading plans..." />
+      {(loading || apiLoading) ? (
+        <Spinner loadingTxt="Loading plans..." size="large" />
       ) : (
         <>
           {/* Desktop Table Layout */}
           <div className="hidden lg:block">
             {/* Desktop Header Row */}
-            <div className="bg-white rounded-xl shadow-sm overflow-hidden mb-1">
+            <div className="bg-white rounded-xl shadow-sm overflow-hidden mb-3">
               <div className="overflow-x-auto max-w-full">
                 <div className="grid grid-cols-7 gap-4 px-6 py-4 bg-gray-50 w-full">
                   <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider">CODE</div>
@@ -251,7 +287,7 @@ const Plans = () => {
             </div>
 
             {/* Desktop Data Rows */}
-            <div className="space-y-2 w-full">
+            <div className="space-y-3 w-full">
               {plans.length === 0 ? (
                 <div className="bg-white rounded-xl shadow-sm p-6 text-center text-gray-500">
                   No plans found
@@ -402,7 +438,7 @@ const Plans = () => {
 
       {/* Add Plan Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-200">
               <h3 className="text-lg font-semibold text-gray-900">Add New Plan</h3>
@@ -434,7 +470,7 @@ const Plans = () => {
                     type="number"
                     step="0.01"
                     value={newPlan.monthlyPrice}
-                    onChange={(e) => setNewPlan({ ...newPlan, monthlyPrice: parseFloat(e.target.value) || 0 })}
+                    onChange={(e) => setNewPlan({ ...newPlan, monthlyPrice: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-400"
                   />
                 </div>
@@ -472,19 +508,22 @@ const Plans = () => {
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 cursor-pointer"
                 >
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-lg text-white shadow-md
-                             bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500
-                             hover:from-purple-600 hover:to-cyan-600
-                             transition-transform hover:scale-[1.02] cursor-pointer"
-                >
-                  Add Plan
-                </button>
+                {buttonLoading ? (
+                  <div className="px-4 py-2 flex items-center justify-center">
+                    <Spinner loadingTxt="Adding..." size="small" />
+                  </div>
+                ) : (
+                  <button
+                    type="submit"
+                    className="px-4 py-2 rounded-lg text-white shadow-md bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500 hover:from-purple-600 hover:to-cyan-600 transition-transform hover:scale-[1.02] cursor-pointer"
+                  >
+                    Add Plan
+                  </button>
+                )}
               </div>
             </form>
           </div>
@@ -493,7 +532,7 @@ const Plans = () => {
 
       {/* Edit Plan Modal */}
       {showEditModal && editingPlan && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-200">
               <h3 className="text-lg font-semibold text-gray-900">Edit Plan</h3>
@@ -525,7 +564,7 @@ const Plans = () => {
                     type="number"
                     step="0.01"
                     value={editingPlan.monthlyPrice}
-                    onChange={(e) => setEditingPlan({ ...editingPlan, monthlyPrice: parseFloat(e.target.value) || 0 })}
+                    onChange={(e) => setEditingPlan({ ...editingPlan, monthlyPrice: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-400"
                   />
                 </div>
@@ -566,19 +605,22 @@ const Plans = () => {
                     setShowEditModal(false);
                     setEditingPlan(null);
                   }}
-                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 cursor-pointer"
                 >
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-lg text-white shadow-md
-                             bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500
-                             hover:from-purple-600 hover:to-cyan-600
-                             transition-transform hover:scale-[1.02] cursor-pointer"
-                >
-                  Update Plan
-                </button>
+                {buttonLoading ? (
+                  <div className="px-4 py-2 flex items-center justify-center">
+                    <Spinner loadingTxt="Updating..." size="small" />
+                  </div>
+                ) : (
+                  <button
+                    type="submit"
+                    className="px-4 py-2 rounded-lg text-white shadow-md bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500 hover:from-purple-600 hover:to-cyan-600 transition-transform hover:scale-[1.02] cursor-pointer"
+                  >
+                    Update Plan
+                  </button>
+                )}
               </div>
             </form>
           </div>

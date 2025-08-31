@@ -1,8 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
+import useApiLoading from "../hooks/useApiLoading";
 import useCustomerStore from "../store/customerStore";
 import Spinner from "../components/Spinner";
+import Alert from "../components/Alert";
 import pendingChargeApi from "../api/pendingChargeApi";
 import {
   Search,
@@ -28,6 +30,7 @@ const Customers = () => {
     addCustomer,
     clearError,
   } = useCustomerStore();
+  const apiLoading = useApiLoading();
 
   // filters (date removed)
   const [search, setSearch] = useState("");
@@ -47,19 +50,15 @@ const Customers = () => {
     description: '',
     chargeType: 'OTHER'
   });
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [alert, setAlert] = useState({ show: false, type: "success", message: "" });
+  const [buttonLoading, setButtonLoading] = useState(false);
 
-  // initial fetch
-  useEffect(() => {
-    fetchCustomers({ page: pageIndex, limit: pageSize });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // debounced fetch when filters change
+  // Combined fetch with debouncing
   useEffect(() => {
     const t = setTimeout(() => {
-      setPageIndex(1);
       fetchCustomers({
-        page: 1,
+        page: pageIndex,
         limit: pageSize,
         ...(search && { search }),
         ...(areaFilter && { areaId: areaFilter }),
@@ -68,33 +67,19 @@ const Customers = () => {
     }, 350);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, areaFilter, paymentStatusFilter, pageSize]);
+  }, [search, areaFilter, paymentStatusFilter, pageSize, pageIndex, refreshTrigger]);
 
-  const handlePageChange = (next) => {
+  const handlePageChange = useCallback((next) => {
     if (!pagination) return;
     if (next < 1 || next > pagination.totalPages) return;
     setPageIndex(next);
-    fetchCustomers({
-      page: next,
-      limit: pageSize,
-      ...(search && { search }),
-      ...(areaFilter && { areaId: areaFilter }),
-      ...(paymentStatusFilter && { paymentStatus: paymentStatusFilter }),
-    });
-  };
+  }, [pagination]);
 
-  const handlePageSizeChange = (size) => {
+  const handlePageSizeChange = useCallback((size) => {
     const n = Number(size) || 10;
     setPageSize(n);
     setPageIndex(1);
-    fetchCustomers({
-      page: 1,
-      limit: n,
-      ...(search && { search }),
-      ...(areaFilter && { areaId: areaFilter }),
-      ...(paymentStatusFilter && { paymentStatus: paymentStatusFilter }),
-    });
-  };
+  }, []);
 
 
 
@@ -120,6 +105,7 @@ const Customers = () => {
       return;
     }
 
+    setButtonLoading(true);
     try {
       await pendingChargeApi.createPendingCharge({
         customerId: selectedCustomer.id,
@@ -136,17 +122,16 @@ const Customers = () => {
         chargeType: 'OTHER'
       });
 
+      // Show success message
+      setAlert({ show: true, type: "success", message: "Bill added successfully!" });
+
       // Refresh customers list
-      fetchCustomers({
-        page: pageIndex,
-        limit: pageSize,
-        ...(search && { search }),
-        ...(areaFilter && { areaId: areaFilter }),
-        ...(paymentStatusFilter && { paymentStatus: paymentStatusFilter }),
-      });
+      setRefreshTrigger(prev => prev + 1);
     } catch (error) {
       console.error('Error adding bill item:', error);
-      alert('Failed to add bill item. Please try again.');
+      setAlert({ show: true, type: "error", message: "Failed to add bill. Please try again." });
+    } finally {
+      setButtonLoading(false);
     }
   };
 
@@ -312,6 +297,15 @@ const Customers = () => {
         </div>
       </div>
 
+      {/* Alert Messages */}
+      {alert.show && (
+        <Alert
+          type={alert.type}
+          message={alert.message}
+          onClose={() => setAlert({ show: false, type: "success", message: "" })}
+        />
+      )}
+
       {/* Error */}
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 flex justify-between items-center">
@@ -323,8 +317,8 @@ const Customers = () => {
       )}
 
       {/* Data */}
-      {loading ? (
-        <Spinner loadingTxt="Loading customers..." />
+      {(loading || apiLoading) ? (
+        <Spinner loadingTxt="Loading customers..." size="large" />
       ) : (
         <>
           {/* Desktop Table Layout */}
@@ -722,7 +716,7 @@ const Customers = () => {
 
       {/* Add Bill Modal */}
       {showAddBillModal && selectedCustomer && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-lg flex items-center justify-center z-[9999] p-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-[9999] p-4">
           <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-hidden shadow-2xl">
             <div className="flex items-center justify-between p-4 border-b border-gray-200">
               <h3 className="text-lg font-semibold text-gray-900">
@@ -804,12 +798,18 @@ const Customers = () => {
                 >
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500 text-white rounded-lg text-sm font-medium hover:from-purple-600 hover:via-blue-600 hover:to-cyan-600 transition-all duration-200 shadow-md hover:shadow-lg cursor-pointer"
-                >
-                  Add to Bill
-                </button>
+                {buttonLoading ? (
+                  <div className="px-4 py-2 flex items-center justify-center">
+                    <Spinner loadingTxt="Adding..." size="small" />
+                  </div>
+                ) : (
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500 text-white rounded-lg text-sm font-medium hover:from-purple-600 hover:via-blue-600 hover:to-cyan-600 transition-all duration-200 shadow-md hover:shadow-lg cursor-pointer"
+                  >
+                    Add to Bill
+                  </button>
+                )}
               </div>
             </form>
           </div>

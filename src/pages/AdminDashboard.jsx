@@ -45,6 +45,7 @@ ChartJS.register(
 const AdminDashboard = () => {
   const loading = useApiLoading();
   const { user } = useUserStore();
+  const apiLoading = useApiLoading();
   
   // State for dashboard data
   const [dashboardData, setDashboardData] = useState(null);
@@ -395,8 +396,14 @@ const AdminDashboard = () => {
     );
   };
 
-    if (loading && !dashboardData) {
-    return <Spinner />;
+    if ((loading || apiLoading) && !dashboardData) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <Spinner loadingTxt="Loading dashboard..." size="large" />
+        </div>
+      </Layout>
+    );
   }
 
   return (

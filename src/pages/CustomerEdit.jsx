@@ -8,6 +8,7 @@ import usePlanStore from "../store/planStore";
 import useAreaStore from "../store/areaStore";
 import useUserStore from "../store/userStore";
 import Spinner from "../components/Spinner";
+import useApiLoading from "../hooks/useApiLoading";
 import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 
 const CustomerEdit = () => {
@@ -28,6 +29,7 @@ const CustomerEdit = () => {
   const { plans, fetchPlans } = usePlanStore();
   const { areas, fetchAreas } = useAreaStore();
   const { user } = useUserStore();
+  const apiLoading = useApiLoading();
 
   // Helper function to format date for display
   const formatDateForDisplay = (dateString) => {
@@ -36,10 +38,19 @@ const CustomerEdit = () => {
     return date.toLocaleDateString('en-GB'); // dd/mm/yyyy format
   };
 
+  // Helper function to format date for input fields
+  const formatDateForInput = (dateString) => {
+    if (!dateString) return new Date().toISOString().split('T')[0];
+    const date = new Date(dateString);
+    return date.toISOString().split('T')[0];
+  };
+
   // Handle plan selection to auto-fill agreed monthly price
   const handlePlanChange = (planId) => {
+    console.log("Plan changed to:", planId); // Debug log
     const selectedPlan = plans.find(plan => plan.id === parseInt(planId));
     if (selectedPlan) {
+      console.log("Selected plan:", selectedPlan); // Debug log
       setValue("agreedMonthlyPrice", selectedPlan.monthlyPrice);
     }
   };
@@ -95,6 +106,7 @@ const CustomerEdit = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
+        console.log("Fetching data for customer ID:", id); // Debug log
         await Promise.all([
           fetchAgents(),
           fetchPlans(),
@@ -102,6 +114,7 @@ const CustomerEdit = () => {
           fetchCustomerById(id),
         ]);
       } catch (err) {
+        console.error("Error fetching data:", err); // Debug log
         setError("Failed to load form data");
       } finally {
         setLoading(false);
@@ -117,40 +130,72 @@ const CustomerEdit = () => {
   // Populate form when customer data is loaded
   useEffect(() => {
     if (currentCustomer) {
-      reset({
+      console.log("Current customer data:", currentCustomer); // Debug log
+      console.log("Hardware data:", currentCustomer.hardware); // Debug log
+      console.log("Subscription data:", currentCustomer.subscription); // Debug log
+      console.log("CustomerHardware (raw):", currentCustomer.CustomerHardware); // Debug log
+      console.log("Subscription (raw):", currentCustomer.Subscription); // Debug log
+      console.log("CustomerHardwares (raw):", currentCustomer.CustomerHardwares); // Debug log
+      console.log("Subscriptions (raw):", currentCustomer.Subscriptions); // Debug log
+      
+      const formData = {
         // Customer Details
         fullName: currentCustomer.fullName || "",
         phone: currentCustomer.phone || "",
         phoneSecondary: currentCustomer.phoneSecondary || "",
         email: currentCustomer.email || "",
         address: currentCustomer.address || "",
-        areaId: currentCustomer.areaId || "",
+        areaId: currentCustomer.areaId ? currentCustomer.areaId.toString() : "",
         customerCode: currentCustomer.customerCode || "",
         billingName: currentCustomer.billingName || "",
-        assignedAgentId: currentCustomer.assignedAgentId || user?.id || "",
-        installationDate: currentCustomer.installationDate || new Date().toISOString().split('T')[0],
+        assignedAgentId: currentCustomer.assignedAgentId ? currentCustomer.assignedAgentId.toString() : (user?.id ? user.id.toString() : ""),
+        installationDate: formatDateForInput(currentCustomer.installationDate),
         securityDeposit: currentCustomer.securityDeposit || 0,
         gstNumber: currentCustomer.gstNumber || "",
         advance: currentCustomer.advance || 0,
         remarks: currentCustomer.remarks || "",
         isActive: currentCustomer.isActive !== undefined ? currentCustomer.isActive : true,
         
-        // Hardware Details
-        deviceType: currentCustomer.hardware?.deviceType || "",
-        macAddress: currentCustomer.hardware?.macAddress || "",
-        ipAddress: currentCustomer.hardware?.ipAddress || "",
+        // Hardware Details - Use transformed data or fallback to raw data
+        deviceType: currentCustomer.hardware?.deviceType || currentCustomer.CustomerHardwares?.[0]?.deviceType || "",
+        macAddress: currentCustomer.hardware?.macAddress || currentCustomer.CustomerHardwares?.[0]?.macAddress || "",
+        ipAddress: currentCustomer.hardware?.ipAddress || currentCustomer.CustomerHardwares?.[0]?.ipAddress || "",
         
-        // Subscription Details
-        planId: currentCustomer.subscription?.planId || "",
-        startDate: currentCustomer.subscription?.startDate || new Date().toISOString().split('T')[0],
-        agreedMonthlyPrice: currentCustomer.subscription?.agreedMonthlyPrice || 0,
-        billingType: currentCustomer.subscription?.billingType || "PREPAID",
-        billingCycle: currentCustomer.subscription?.billingCycle || "MONTHLY",
-        billingCycleValue: currentCustomer.subscription?.billingCycleValue || 1,
-        additionalCharge: currentCustomer.subscription?.additionalCharge || 0,
-        discount: currentCustomer.subscription?.discount || 0,
-        status: currentCustomer.subscription?.status || "ACTIVE",
-      });
+        // Subscription Details - Use transformed data or fallback to raw data
+        planId: (currentCustomer.subscription?.planId || currentCustomer.Subscriptions?.[0]?.planId) ? 
+          (currentCustomer.subscription?.planId || currentCustomer.Subscriptions?.[0]?.planId).toString() : "",
+        startDate: formatDateForInput(currentCustomer.subscription?.startDate || currentCustomer.Subscriptions?.[0]?.startDate),
+        agreedMonthlyPrice: currentCustomer.subscription?.agreedMonthlyPrice || currentCustomer.Subscriptions?.[0]?.agreedMonthlyPrice || 0,
+        billingType: currentCustomer.subscription?.billingType || currentCustomer.Subscriptions?.[0]?.billingType || "PREPAID",
+        billingCycle: currentCustomer.subscription?.billingCycle || currentCustomer.Subscriptions?.[0]?.billingCycle || "MONTHLY",
+        billingCycleValue: currentCustomer.subscription?.billingCycleValue || currentCustomer.Subscriptions?.[0]?.billingCycleValue || 1,
+        additionalCharge: currentCustomer.subscription?.additionalCharge || currentCustomer.Subscriptions?.[0]?.additionalCharge || 0,
+        discount: currentCustomer.subscription?.discount || currentCustomer.Subscriptions?.[0]?.discount || 0,
+        status: currentCustomer.subscription?.status || currentCustomer.Subscriptions?.[0]?.status || "ACTIVE",
+      };
+      
+      console.log("Form data to be set:", formData); // Debug log
+      console.log("Hardware form data:", {
+        deviceType: formData.deviceType,
+        macAddress: formData.macAddress,
+        ipAddress: formData.ipAddress
+      }); // Debug log
+      console.log("Subscription form data:", {
+        planId: formData.planId,
+        startDate: formData.startDate,
+        agreedMonthlyPrice: formData.agreedMonthlyPrice
+      }); // Debug log
+      
+      // Use setTimeout to ensure the form is properly reset
+      setTimeout(() => {
+        // Set all values individually instead of using reset
+        Object.keys(formData).forEach(key => {
+          setValue(key, formData[key]);
+        });
+        
+        console.log("All form values set individually"); // Debug log
+        console.log("Current step:", currentStep); // Debug log
+      }, 100);
     }
   }, [currentCustomer, reset, user?.id]);
 
@@ -161,8 +206,31 @@ const CustomerEdit = () => {
   ];
 
   const nextStep = async () => {
-    const isStepValid = await trigger();
+    console.log("Next step clicked, current step:", currentStep); // Debug log
+    
+    // Only validate required fields for the current step
+    let isStepValid = true;
+    
+    if (currentStep === 1) {
+      // Validate customer details (required fields)
+      console.log("Validating step 1..."); // Debug log
+      isStepValid = await trigger(["fullName", "phone", "areaId"]);
+      console.log("Step 1 validation result:", isStepValid); // Debug log
+    } else if (currentStep === 2) {
+      // Hardware details - no required fields, so always valid
+      console.log("Step 2 - no validation needed"); // Debug log
+      isStepValid = true;
+    } else if (currentStep === 3) {
+      // Subscription details - validate required fields
+      console.log("Validating step 3..."); // Debug log
+      isStepValid = await trigger(["planId", "startDate"]);
+      console.log("Step 3 validation result:", isStepValid); // Debug log
+    }
+    
+    console.log("Final validation result:", isStepValid); // Debug log
+    
     if (isStepValid && currentStep < 3) {
+      console.log("Moving to next step:", currentStep + 1); // Debug log
       setCurrentStep(currentStep + 1);
     }
   };
@@ -174,6 +242,9 @@ const CustomerEdit = () => {
   };
 
   const onSubmit = async (data) => {
+    console.log("Form submitted with data:", data); // Debug log
+    console.log("Current step when submitting:", currentStep); // Debug log
+    
     try {
       setLoading(true);
       setError(null);
@@ -223,11 +294,11 @@ const CustomerEdit = () => {
     }
   };
 
-  if (loading && !currentCustomer) {
+  if ((loading || apiLoading) && !currentCustomer) {
     return (
       <Layout>
         <div className="flex items-center justify-center min-h-screen">
-          <Spinner loadingTxt="Loading customer details..." />
+          <Spinner loadingTxt="Loading customer details..." size="medium" />
         </div>
       </Layout>
     );
@@ -310,7 +381,14 @@ const CustomerEdit = () => {
         )}
 
         {/* Form */}
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+        <form onSubmit={(e) => {
+          if (currentStep !== 3) {
+            e.preventDefault();
+            console.log("Form submission prevented - not on final step"); // Debug log
+            return;
+          }
+          handleSubmit(onSubmit)(e);
+        }} className="space-y-8">
           {/* Step 1: Customer Details */}
           {currentStep === 1 && (
             <div className="bg-white rounded-lg shadow p-6">
@@ -727,7 +805,11 @@ const CustomerEdit = () => {
           <div className="flex justify-between pt-6">
             <button
               type="button"
-              onClick={prevStep}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                prevStep();
+              }}
               disabled={currentStep === 1}
               className="flex items-center gap-2 px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
@@ -739,7 +821,11 @@ const CustomerEdit = () => {
               {currentStep < 3 ? (
                 <button
                   type="button"
-                  onClick={nextStep}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    nextStep();
+                  }}
                   className="flex items-center gap-2 px-6 py-2 rounded-lg text-white shadow-md
                              bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500
                              hover:from-purple-600 hover:to-cyan-600
@@ -749,26 +835,20 @@ const CustomerEdit = () => {
                   <ArrowRight className="w-4 h-4" />
                 </button>
               ) : (
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="flex items-center gap-2 px-6 py-2 rounded-lg text-white shadow-md
-                             bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500
-                             hover:from-purple-600 hover:to-cyan-600
-                             transition-transform hover:scale-[1.02] disabled:opacity-50 cursor-pointer"
-                >
-                  {loading ? (
-                    <>
-                      <Spinner loadingTxt="Updating..." />
-                      Updating Customer
-                    </>
-                  ) : (
-                    <>
-                      <Check className="w-4 h-4" />
-                      Update Customer
-                    </>
-                  )}
-                </button>
+                loading ? (
+                  <div className="flex items-center gap-2 px-6 py-2 rounded-lg text-white shadow-md">
+                    <Spinner loadingTxt="Updating..." size="small" />
+                    Updating Customer
+                  </div>
+                ) : (
+                  <button
+                    type="submit"
+                    className="flex items-center gap-2 px-6 py-2 rounded-lg text-white shadow-md bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500 hover:from-purple-600 hover:to-cyan-600 transition-transform hover:scale-[1.02] cursor-pointer"
+                  >
+                    <Check className="w-4 h-4" />
+                    Update Customer
+                  </button>
+                )
               )}
             </div>
           </div>

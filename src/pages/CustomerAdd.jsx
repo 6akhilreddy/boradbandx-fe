@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import Layout from "../components/Layout";
+import useApiLoading from "../hooks/useApiLoading";
 import useCustomerStore from "../store/customerStore";
 import useAgentStore from "../store/agentStore";
 import usePlanStore from "../store/planStore";
@@ -22,6 +23,7 @@ const CustomerAdd = () => {
   const { plans, fetchPlans } = usePlanStore();
   const { areas, fetchAreas } = useAreaStore();
   const { user } = useUserStore();
+  const apiLoading = useApiLoading();
 
   // Helper function to format date for display
   const formatDateForDisplay = (dateString) => {
@@ -173,11 +175,11 @@ const CustomerAdd = () => {
     }
   };
 
-  if (loading && !agents.length && !plans.length) {
+  if ((loading || apiLoading) && !agents.length && !plans.length) {
     return (
       <Layout>
         <div className="flex items-center justify-center min-h-screen">
-          <Spinner loadingTxt="Loading form data..." />
+          <Spinner loadingTxt="Loading form data..." size="medium" />
         </div>
       </Layout>
     );
@@ -679,26 +681,20 @@ const CustomerAdd = () => {
                   <ArrowRight className="w-4 h-4" />
                 </button>
               ) : (
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="flex items-center gap-2 px-6 py-2 rounded-lg text-white shadow-md
-                             bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500
-                             hover:from-purple-600 hover:to-cyan-600
-                             transition-transform hover:scale-[1.02] disabled:opacity-50 cursor-pointer"
-                >
-                  {loading ? (
-                    <>
-                      <Spinner loadingTxt="Creating..." />
-                      Creating Customer
-                    </>
-                  ) : (
-                    <>
-                      <Check className="w-4 h-4" />
-                      Create Customer
-                    </>
-                  )}
-                </button>
+                loading ? (
+                  <div className="flex items-center gap-2 px-6 py-2 rounded-lg text-white shadow-md">
+                    <Spinner loadingTxt="Creating..." size="small" />
+                    Creating Customer
+                  </div>
+                ) : (
+                  <button
+                    type="submit"
+                    className="flex items-center gap-2 px-6 py-2 rounded-lg text-white shadow-md bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500 hover:from-purple-600 hover:to-cyan-600 transition-transform hover:scale-[1.02] cursor-pointer"
+                  >
+                    <Check className="w-4 h-4" />
+                    Create Customer
+                  </button>
+                )
               )}
             </div>
           </div>

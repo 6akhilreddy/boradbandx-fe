@@ -16,6 +16,7 @@ import { SiPhonepe, SiGooglepay } from "react-icons/si";
 import useCollectionStore from "../store/collectionStore";
 import Layout from "../components/Layout";
 import Spinner from "../components/Spinner";
+import useApiLoading from "../hooks/useApiLoading";
 
 const Collection = () => {
   const {
@@ -31,6 +32,7 @@ const Collection = () => {
     fetchAreas,
     clearError
   } = useCollectionStore();
+  const apiLoading = useApiLoading();
 
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [localFilters, setLocalFilters] = useState({
@@ -189,11 +191,11 @@ const Collection = () => {
     return <Clock className="w-4 h-4 text-yellow-500" />;
   };
 
-  if (loading && !collectionData.length) {
+  if ((loading || apiLoading) && !collectionData.length) {
     return (
       <Layout>
         <div className="flex items-center justify-center h-64">
-          <Spinner />
+          <Spinner loadingTxt="Loading collection data..." size="large" />
         </div>
       </Layout>
     );
@@ -416,11 +418,11 @@ const Collection = () => {
 
         {/* Daily Collections */}
         <div className="space-y-6">
-          {loading ? (
-            <div className="flex items-center justify-center h-32">
-              <Spinner />
-            </div>
-          ) : collectionData.length === 0 ? (
+                      {(loading || apiLoading) ? (
+              <div className="flex items-center justify-center h-32">
+                <Spinner loadingTxt="Loading collection data..." size="medium" />
+              </div>
+            ) : collectionData.length === 0 ? (
             <div className="flex items-center justify-center h-32 text-gray-500">
               <p>No collection data found for the selected period.</p>
             </div>

@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { getInvoiceHistory, getPaymentHistory, getUserHistory, getAreas } from '../api/reportApi';
 import { searchCustomers } from '../api/paymentApi';
+import { getCompanyById } from '../api/companyApi';
 import useApiLoading from '../hooks/useApiLoading';
 import Spinner from '../components/Spinner';
 import Layout from '../components/Layout';
@@ -31,6 +32,7 @@ import html2canvas from 'html2canvas';
 const Reports = () => {
   const [loading, setLoading] = useState(false);
   const { isAuthenticated, user } = useUserStore();
+  const apiLoading = useApiLoading();
   const [searchParams, setSearchParams] = useSearchParams();
   
   // State for active tab
@@ -63,6 +65,8 @@ const Reports = () => {
   const [areas, setAreas] = useState([]);
   const [error, setError] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
+  const [companyData, setCompanyData] = useState(null);
+  const [companyLoading, setCompanyLoading] = useState(false);
 
   // State for PDF preview
   const [showPdfPreview, setShowPdfPreview] = useState(false);
@@ -97,6 +101,7 @@ const Reports = () => {
     
     if (isAuthenticated()) {
       loadAreas();
+      loadCompanyData();
       
       // If customerId is provided in URL, auto-select the user
       if (customerIdParam && customerNameParam) {
@@ -128,12 +133,39 @@ const Reports = () => {
     }
   }, [activeTab, invoiceFilters.dateRange.start, invoiceFilters.dateRange.end, invoiceFilters.searchQuery, invoiceFilters.status, paymentFilters.dateRange.start, paymentFilters.dateRange.end, paymentFilters.searchQuery, paymentFilters.method]);
 
+  // Reload company data when user changes
+  useEffect(() => {
+    if (isAuthenticated()) {
+      loadCompanyData();
+    }
+  }, [user]);
+
   const loadAreas = async () => {
     try {
       const response = await getAreas();
       setAreas(response.data);
     } catch (error) {
       console.error('Failed to load areas:', error);
+    }
+  };
+
+  const loadCompanyData = async () => {
+    try {
+      setCompanyLoading(true);
+      const { getCompanyId } = useUserStore.getState();
+      const companyId = getCompanyId();
+      console.log('Loading company data for companyId:', companyId);
+      if (companyId) {
+        const response = await getCompanyById(companyId);
+        console.log('Company data response:', response);
+        setCompanyData(response.data);
+      } else {
+        console.log('No company ID found in user store');
+      }
+    } catch (error) {
+      console.error('Failed to load company data:', error);
+    } finally {
+      setCompanyLoading(false);
     }
   };
 
@@ -310,10 +342,13 @@ const Reports = () => {
   };
 
   const formatCurrency = (amount) => {
+    console.log('formatCurrency called with amount:', amount, 'type:', typeof amount);
+    const numAmount = parseFloat(amount) || 0;
+    console.log('Parsed amount:', numAmount);
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
       currency: 'INR'
-    }).format(amount);
+    }).format(numAmount);
   };
 
   const formatDate = (dateString) => {
@@ -343,6 +378,16 @@ const Reports = () => {
   };
 
   const generatePDF = async (invoice) => {
+    console.log('Generating PDF for invoice:', invoice);
+    console.log('Company data when generating PDF:', companyData);
+    console.log('Invoice amounts:', {
+      amountDue: invoice.amountDue,
+      amountTotal: invoice.amountTotal,
+      taxAmount: invoice.taxAmount,
+      totalPaid: invoice.totalPaid,
+      balance: invoice.balance,
+      discounts: invoice.discounts
+    });
     setSelectedInvoice(invoice);
     setShowPdfPreview(true);
   };
@@ -575,9 +620,9 @@ const Reports = () => {
                 )}
 
                 {/* Data */}
-                {loading ? (
-                  <Spinner loadingTxt="Loading invoices..." />
-                ) : (
+                                  {(loading || apiLoading) ? (
+                    <Spinner loadingTxt="Loading invoices..." size="large" />
+                  ) : (
                   <>
                     {/* Desktop Table Layout */}
                     <div className="hidden lg:block">
@@ -648,7 +693,7 @@ const Reports = () => {
 
                                 {/* TOTAL AMOUNT */}
                                 <div className="flex items-center min-w-0">
-                                  <div className="font-medium text-gray-900 truncate w-full">₹{Math.round(invoice.amountTotal || 0)}</div>
+                                  <div className="font-medium text-gray-900 truncate w-full">₹{Math.round(parseFloat(invoice.amountTotal) || 0)}</div>
                                 </div>
 
                                 {/* ACTIONS */}
@@ -732,7 +777,7 @@ const Reports = () => {
                                   {/* Total Amount */}
                                   <div>
                                     <div className="text-xs text-gray-500 mb-1">Total Amount</div>
-                                    <div className="text-lg font-bold text-gray-900">₹{Math.round(invoice.amountTotal || 0)}</div>
+                                    <div className="text-lg font-bold text-gray-900">₹{Math.round(parseFloat(invoice.amountTotal) || 0)}</div>
                                   </div>
                                 </div>
                               </div>
@@ -949,9 +994,9 @@ const Reports = () => {
                 )}
 
                 {/* Data */}
-                {loading ? (
-                  <Spinner loadingTxt="Loading payments..." />
-                ) : (
+                                  {(loading || apiLoading) ? (
+                    <Spinner loadingTxt="Loading payments..." size="large" />
+                  ) : (
                   <>
                     {/* Desktop Table Layout */}
                     <div className="hidden lg:block">
@@ -1003,7 +1048,7 @@ const Reports = () => {
 
                                 {/* AMOUNT */}
                                 <div className="flex items-center min-w-0">
-                                  <div className="font-medium text-gray-900 truncate w-full">₹{Math.round(payment.amount || 0)}</div>
+                                  <div className="font-medium text-gray-900 truncate w-full">₹{Math.round(parseFloat(payment.amount) || 0)}</div>
                                 </div>
 
                                 {/* METHOD */}
@@ -1079,7 +1124,7 @@ const Reports = () => {
                                   {/* Amount */}
                                   <div>
                                     <div className="text-xs text-gray-500 mb-1">Amount</div>
-                                    <div className="text-lg font-bold text-gray-900">₹{Math.round(payment.amount || 0)}</div>
+                                    <div className="text-lg font-bold text-gray-900">₹{Math.round(parseFloat(payment.amount) || 0)}</div>
                                   </div>
                                 </div>
 
@@ -1237,7 +1282,7 @@ const Reports = () => {
                     <h2 className="text-xl font-semibold text-gray-900">User History</h2>
                     <button
                       onClick={() => setShowUserSearch(true)}
-                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+                      className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500 text-white rounded-lg text-sm font-medium hover:from-purple-600 hover:via-blue-600 hover:to-cyan-600 transition-all duration-200 shadow-md hover:shadow-lg cursor-pointer"
                     >
                       <Users className="w-4 h-4" />
                       Select User
@@ -1250,7 +1295,7 @@ const Reports = () => {
                         <div>
                           <h3 className="text-xl font-bold text-gray-900 mb-2">{selectedCustomer.fullName}</h3>
                           <p className="text-sm text-gray-600">Code: {selectedCustomer.customerCode || 'N/A'} | Phone: {selectedCustomer.phone || 'N/A'}</p>
-                          <p className="text-sm text-gray-600">Area: {selectedCustomer.areaName || 'N/A'}</p>
+                          <p className="text-sm text-gray-600">Area: {selectedCustomer.areaName || selectedCustomer.area || 'N/A'}</p>
                         </div>
                         <button
                           onClick={() => {
@@ -1271,7 +1316,7 @@ const Reports = () => {
                       <p className="text-gray-600 mb-4">Select a user to view their transaction history</p>
                       <button
                         onClick={() => setShowUserSearch(true)}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+                        className="px-4 py-2 bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500 text-white rounded-lg text-sm font-medium hover:from-purple-600 hover:via-blue-600 hover:to-cyan-600 transition-all duration-200 shadow-md hover:shadow-lg cursor-pointer"
                       >
                         Select User
                       </button>
@@ -1286,7 +1331,7 @@ const Reports = () => {
                       <h3 className="text-lg font-semibold text-gray-900">Balance History</h3>
                       <button
                         onClick={() => {/* TODO: Implement download functionality */}}
-                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+                        className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500 text-white rounded-lg text-sm font-medium hover:from-purple-600 hover:via-blue-600 hover:to-cyan-600 transition-all duration-200 shadow-md hover:shadow-lg cursor-pointer"
                       >
                         <Download className="w-4 h-4" />
                         Download
@@ -1529,11 +1574,11 @@ const Reports = () => {
                 )}
 
                 {/* Loading State */}
-                {selectedCustomer && userHistoryLoading && (
-                  <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                    <Spinner loadingTxt="Loading user history..." />
-                  </div>
-                )}
+                                  {selectedCustomer && (userHistoryLoading || apiLoading) && (
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                      <Spinner loadingTxt="Loading user history..." size="large" />
+                    </div>
+                  )}
               </div>
             )}
           </div>
@@ -1568,9 +1613,11 @@ const Reports = () => {
                   <div id="pdf-content" className="bg-white p-8 border border-gray-200">
                     {/* Company Header */}
                     <div className="text-center mb-8">
-                      <h1 className="text-3xl font-bold text-gray-900 mb-2">BroadbandX</h1>
-                      <p className="text-gray-600">Internet Service Provider</p>
-                      <p className="text-gray-600">GST No: 27AABCB1234Z1Z5</p>
+                      <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                        {companyLoading ? 'Loading...' : (companyData?.name || 'BroadbandX')}
+                      </h1>
+                      <p className="text-gray-600">{companyData?.description || 'Internet Service Provider'}</p>
+                      <p className="text-gray-600">GST No: {companyData?.gstNumber || '27AABCB1234Z1Z5'}</p>
                     </div>
 
                     {/* Invoice Details */}
@@ -1701,9 +1748,11 @@ const Reports = () => {
                   <div id="payment-pdf-content" className="bg-white p-8 border border-gray-200">
                     {/* Company Header */}
                     <div className="text-center mb-8">
-                      <h1 className="text-3xl font-bold text-gray-900 mb-2">BroadbandX</h1>
-                      <p className="text-gray-600">Internet Service Provider</p>
-                      <p className="text-gray-600">GST No: 27AABCB1234Z1Z5</p>
+                      <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                        {companyLoading ? 'Loading...' : (companyData?.name || 'BroadbandX')}
+                      </h1>
+                      <p className="text-gray-600">{companyData?.description || 'Internet Service Provider'}</p>
+                      <p className="text-gray-600">GST No: {companyData?.gstNumber || '27AABCB1234Z1Z5'}</p>
                     </div>
 
                     {/* Payment Details */}
@@ -1807,7 +1856,11 @@ const Reports = () => {
 
                   {/* Search Results */}
                   <div className="max-h-96 overflow-y-auto">
-                    {customers.length === 0 ? (
+                    {apiLoading ? (
+                      <div className="flex items-center justify-center py-8">
+                        <Spinner loadingTxt="Searching customers..." size="medium" />
+                      </div>
+                    ) : customers.length === 0 ? (
                       <div className="text-center py-8 text-gray-500">
                         {searchQuery ? 'No customers found. Try a different search term.' : 'Enter a search term to find customers.'}
                       </div>
@@ -1825,7 +1878,7 @@ const Reports = () => {
                                 <div className="text-sm text-gray-600">
                                   Code: {customer.customerCode} | Phone: {customer.phone}
                                 </div>
-                                <div className="text-sm text-gray-500">{customer.areaName || 'No area assigned'}</div>
+                                <div className="text-sm text-gray-500">{customer.areaName || customer.area || 'No area assigned'}</div>
                               </div>
                               <div className="text-right">
                                 <div className="text-sm font-medium text-gray-900">₹{customer.balance || 0}</div>

@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
 import useAgentStore from "../store/agentStore";
 import Spinner from "../components/Spinner";
+import useApiLoading from "../hooks/useApiLoading";
 import {
   ArrowLeft,
   Calendar,
@@ -26,6 +27,7 @@ const AgentDetail = () => {
     fetchAgentPaymentHistory,
     clearError,
   } = useAgentStore();
+  const apiLoading = useApiLoading();
 
   const [paymentHistory, setPaymentHistory] = useState([]);
   const [paymentLoading, setPaymentLoading] = useState(false);
@@ -83,10 +85,10 @@ const AgentDetail = () => {
     return badges[method] || { text: method, class: "bg-gray-100 text-gray-700" };
   };
 
-  if (loading) {
+  if (loading || apiLoading) {
     return (
       <Layout>
-        <Spinner loadingTxt="Loading agent details..." />
+        <Spinner loadingTxt="Loading agent details..." size="medium" />
       </Layout>
     );
   }
@@ -248,11 +250,11 @@ const AgentDetail = () => {
           </h2>
         </div>
 
-        {paymentLoading ? (
-          <div className="p-6">
-            <Spinner loadingTxt="Loading payment history..." />
-          </div>
-        ) : paymentHistory.length === 0 ? (
+                  {(paymentLoading || apiLoading) ? (
+            <div className="p-6">
+              <Spinner loadingTxt="Loading payment history..." size="medium" />
+            </div>
+          ) : paymentHistory.length === 0 ? (
           <div className="p-6 text-center text-gray-500">
             <IndianRupee className="w-12 h-12 mx-auto mb-4 text-gray-300" />
             <p>No payment history found</p>

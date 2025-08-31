@@ -3,14 +3,13 @@ import { useParams, useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
 import useCustomerStore from "../store/customerStore";
 import Spinner from "../components/Spinner";
-import BalanceHistory from "../components/BalanceHistory";
+import useApiLoading from "../hooks/useApiLoading";
 import AddPendingCharge from "../components/AddPendingCharge";
-import { ArrowLeft, Edit, Phone, Mail, MapPin, Calendar, CreditCard, Wifi, HardDrive, Plus } from "lucide-react";
+import { ArrowLeft, Edit, Phone, Mail, MapPin, Calendar, CreditCard, Wifi, HardDrive } from "lucide-react";
 
 const CustomerDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("details");
   const [showAddPendingCharge, setShowAddPendingCharge] = useState(false);
   const {
     currentCustomer,
@@ -20,6 +19,7 @@ const CustomerDetail = () => {
     clearError,
     clearCurrentCustomer,
   } = useCustomerStore();
+  const apiLoading = useApiLoading();
 
   useEffect(() => {
     if (id) {
@@ -30,10 +30,10 @@ const CustomerDetail = () => {
     };
   }, [id]);
 
-  if (loading) {
+  if (loading || apiLoading) {
     return (
       <Layout>
-        <Spinner loadingTxt="Loading customer details..." />
+        <Spinner loadingTxt="Loading customer details..." size="medium" />
       </Layout>
     );
   }
@@ -97,36 +97,7 @@ const CustomerDetail = () => {
         </button>
       </div>
 
-      {/* Tabs */}
-      <div className="bg-white rounded-lg shadow mb-6">
-        <div className="border-b border-gray-200">
-          <nav className="-mb-px flex space-x-8 px-6">
-            <button
-              onClick={() => setActiveTab("details")}
-              className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                activeTab === "details"
-                  ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
-            >
-              Customer Details
-            </button>
-            <button
-              onClick={() => setActiveTab("history")}
-              className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                activeTab === "history"
-                  ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
-            >
-              Balance History
-            </button>
-          </nav>
-        </div>
-      </div>
-
-      {/* Tab Content */}
-      {activeTab === "details" && (
+      {/* Customer Details Content */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Customer Information */}
           <div className="lg:col-span-2 space-y-6">
@@ -381,26 +352,6 @@ const CustomerDetail = () => {
           </div>
         </div>
       </div>
-      )}
-
-      {/* Balance History Tab */}
-      {activeTab === "history" && (
-        <div className="space-y-6">
-          {/* Add Pending Charge Button */}
-          <div className="flex justify-end">
-            <button
-              onClick={() => setShowAddPendingCharge(true)}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-            >
-              <Plus className="w-4 h-4" />
-              Add Pending Charge
-            </button>
-          </div>
-
-          {/* Balance History Component */}
-          <BalanceHistory customerId={id} />
-        </div>
-      )}
 
       {/* Add Pending Charge Modal */}
       {showAddPendingCharge && (

@@ -266,7 +266,7 @@ const SuperAdminDashboard = () => {
         <div className="bg-white rounded-2xl shadow-2xl p-4 md:p-6">
           {companyLoading ? (
             <div className="flex justify-center items-center h-40">
-              <Spinner loadingTxt="Loading companies..." />
+              <Spinner loadingTxt="Loading companies..." size="large" />
             </div>
           ) : companyError ? (
             <p className="text-red-500 text-center">{companyError}</p>
@@ -441,7 +441,7 @@ function CompanyBlock({
 
               {companyAdmins?.loading ? (
                 <div className="p-4">
-                  <Spinner loadingTxt="Loading admins..." />
+                  <Spinner loadingTxt="Loading admins..." size="large" />
                 </div>
               ) : companyAdmins?.error ? (
                 <p className="text-red-500">{companyAdmins.error}</p>
@@ -486,7 +486,7 @@ function CompanyBlock({
                                 title={admin.status === "active" ? "Deactivate" : "Activate"}
                               >
                                 {togglingId === admin.id ? (
-                                  <Spinner loadingTxt="" />
+                                  <Spinner loadingTxt="" size="small" />
                                 ) : admin.status === "active" ? (
                                   <ToggleLeft className="w-5 h-5" />
                                 ) : (
@@ -534,7 +534,7 @@ function AdminModal({ mode, companyId, admin, onClose, onSubmit, apiError, isLoa
   });
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50">
       <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md">
         <p className="text-lg font-semibold mb-4">
           {mode === "create" ? "Create Admin" : "Edit Admin"}
@@ -580,7 +580,7 @@ function AdminModal({ mode, companyId, admin, onClose, onSubmit, apiError, isLoa
             className="bg-indigo-600 text-white rounded-xl px-4 py-2 mt-2 disabled:bg-indigo-300 active:scale-[0.98] transition"
             disabled={isLoading}
           >
-            {isLoading ? <Spinner loadingTxt={mode === "create" ? "Creating..." : "Saving..."} /> : mode === "create" ? "Create" : "Save"}
+            {isLoading ? <Spinner loadingTxt={mode === "create" ? "Creating..." : "Saving..."} size="small" /> : mode === "create" ? "Create" : "Save"}
           </button>
         </form>
         <button className="mt-4 px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-xl active:scale-[0.98] transition" onClick={onClose}>
@@ -596,7 +596,7 @@ function PasswordModal({ admin, onClose, onSubmit, apiError, isLoading }) {
   const { register, handleSubmit, formState: { errors } } = useForm();
   const [showPassword, setShowPassword] = useState(false);
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50">
       <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md">
         <p className="text-lg font-semibold mb-4">Reset Password for {admin?.name}</p>
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
@@ -624,7 +624,7 @@ function PasswordModal({ admin, onClose, onSubmit, apiError, isLoading }) {
             className="bg-indigo-600 text-white rounded-xl px-4 py-2 mt-2 disabled:bg-indigo-300 active:scale-[0.98] transition"
             disabled={isLoading}
           >
-            {isLoading ? <Spinner loadingTxt="Resetting..." /> : "Reset Password"}
+            {isLoading ? <Spinner loadingTxt="Resetting..." size="small" /> : "Reset Password"}
           </button>
         </form>
         <button className="mt-4 px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-xl active:scale-[0.98] transition" onClick={onClose}>
@@ -645,7 +645,7 @@ function CompanyModal({ mode, company, onClose, onSubmit, apiError, isLoading })
   });
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50">
       <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md">
         <p className="text-lg font-semibold mb-4">
           {mode === "create" ? "Add Company" : "Edit Company"}
@@ -670,7 +670,7 @@ function CompanyModal({ mode, company, onClose, onSubmit, apiError, isLoading })
             className="bg-indigo-600 text-white rounded-xl px-4 py-2 mt-2 disabled:bg-indigo-300 active:scale-[0.98] transition"
             disabled={isLoading}
           >
-            {isLoading ? <Spinner loadingTxt={mode === "create" ? "Creating..." : "Saving..."} /> : mode === "create" ? "Create" : "Save"}
+            {isLoading ? <Spinner loadingTxt={mode === "create" ? "Creating..." : "Saving..."} size="small" /> : mode === "create" ? "Create" : "Save"}
           </button>
         </form>
         <button className="mt-4 px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-xl active:scale-[0.98] transition" onClick={onClose}>
