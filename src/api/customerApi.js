@@ -74,3 +74,28 @@ export const deleteCustomer = async (id) => {
     throw error;
   }
 };
+
+export const addPendingCharge = async (customerId, pendingChargeData) => {
+  try {
+    const response = await axiosInstance.post(
+      `${URLS.CUSTOMERS}/${customerId}/pending-charge`,
+      pendingChargeData
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Add pending charge failed:", error);
+    throw error;
+  }
+};
+
+export const getCustomerBalanceHistory = async (customerId) => {
+  try {
+    const response = await axiosInstance.get(
+      `${URLS.CUSTOMERS}/${customerId}/balance-history`
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Get customer balance history failed:", error);
+    throw error;
+  }
+};

@@ -6,7 +6,6 @@ import Spinner from "../components/Spinner";
 import {
   Search,
   Plus,
-  Eye,
   Edit,
   Filter,
   X,
@@ -20,6 +19,7 @@ const Plans = () => {
     error,
     fetchPlans,
     addPlan,
+    editPlan,
     clearError,
   } = usePlanStore();
 
@@ -29,6 +29,7 @@ const Plans = () => {
 
   // modal
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [newPlan, setNewPlan] = useState({
     name: "",
@@ -38,6 +39,7 @@ const Plans = () => {
     benefits: "",
     isActive: true,
   });
+  const [editingPlan, setEditingPlan] = useState(null);
 
   // initial fetch
   useEffect(() => {
@@ -61,6 +63,34 @@ const Plans = () => {
     e.preventDefault();
     await addPlan(newPlan);
     setShowAddModal(false);
+    setNewPlan({
+      name: "",
+      monthlyPrice: 0,
+      gstRate: 18,
+      code: "",
+      benefits: "",
+      isActive: true,
+    });
+  };
+
+  const handleEditPlan = async (e) => {
+    e.preventDefault();
+    await editPlan(editingPlan.id, editingPlan);
+    setShowEditModal(false);
+    setEditingPlan(null);
+  };
+
+  const openEditModal = (plan) => {
+    setEditingPlan({
+      id: plan.id,
+      name: plan.name,
+      monthlyPrice: plan.monthlyPrice,
+      gstRate: plan.gstRate,
+      code: plan.code,
+      benefits: plan.benefits,
+      isActive: plan.isActive,
+    });
+    setShowEditModal(true);
   };
 
   const getStatusBadge = (isActive) => {
@@ -99,7 +129,7 @@ const Plans = () => {
               placeholder="Search plans..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-10 pr-4 py-2 w-full rounded-full bg-gray-100 border border-transparent
+              className="pl-10 pr-4 py-2 w-full rounded-lg bg-gray-100 border border-transparent
                          focus:outline-none focus:ring-2 focus:ring-emerald-400"
             />
           </div>
@@ -108,7 +138,7 @@ const Plans = () => {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="w-48 px-4 py-2 rounded-full bg-gray-100 border border-transparent
+            className="w-48 px-4 py-2 rounded-lg bg-gray-100 border border-transparent
                        focus:outline-none focus:ring-2 focus:ring-emerald-400"
           >
             <option value="">All Status</option>
@@ -122,7 +152,7 @@ const Plans = () => {
               setSearch("");
               setStatusFilter("");
             }}
-            className="px-3 py-2 rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200 text-sm"
+            className="px-3 py-2 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 text-sm"
           >
             Clear Filters
           </button>
@@ -139,7 +169,7 @@ const Plans = () => {
                 placeholder="Search plans..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="pl-10 pr-4 py-2 w-full rounded-full bg-gray-100 border border-transparent
+                className="pl-10 pr-4 py-2 w-full rounded-lg bg-gray-100 border border-transparent
                            focus:outline-none focus:ring-2 focus:ring-emerald-400"
               />
             </div>
@@ -147,7 +177,7 @@ const Plans = () => {
             {/* Filter Icon Button */}
             <button
               onClick={() => setShowMobileFilters(!showMobileFilters)}
-              className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+              className="flex items-center justify-center w-10 h-10 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
             >
               <Filter className="w-4 h-4" />
             </button>
@@ -159,7 +189,7 @@ const Plans = () => {
                   setSearch("");
                   setStatusFilter("");
                 }}
-                className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+                className="flex items-center justify-center w-10 h-10 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -215,7 +245,7 @@ const Plans = () => {
                   <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider">GST RATE</div>
                   <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider">BENEFITS</div>
                   <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider">STATUS</div>
-                  <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider text-right">ACTION</div>
+                  <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider text-center">ACTION</div>
                 </div>
               </div>
             </div>
@@ -256,9 +286,9 @@ const Plans = () => {
                         </div>
 
                         {/* BENEFITS */}
-                        <div className="col-span-1 flex items-center min-w-0">
-                          <div className="text-sm text-gray-700 truncate min-w-0 w-full">
-                            {plan.benefits ? (plan.benefits.length > 50 ? plan.benefits.substring(0, 50) + "..." : plan.benefits) : "N/A"}
+                        <div className="col-span-1 flex items-start min-w-0">
+                          <div className="text-sm text-gray-700 break-words min-w-0 w-full leading-relaxed">
+                            {plan.benefits || "N/A"}
                           </div>
                         </div>
 
@@ -270,33 +300,19 @@ const Plans = () => {
                         </div>
 
                         {/* ACTION */}
-                        <div className="col-span-1 flex items-center justify-end">
-                          <div className="flex gap-2">
-                            <button
-                              className="inline-flex items-center justify-center w-10 h-10 rounded-md transition-all cursor-pointer
-                                         hover:shadow-sm text-gray-600 hover:text-blue-600 bg-gray-50 hover:bg-blue-50
-                                         group relative border border-gray-200"
-                              title="View Details"
-                              onClick={() => navigate(`/plans/${plan.id}`)}
-                            >
-                              <Eye className="w-5 h-5" />
-                              <span className="hidden md:block absolute -bottom-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-10">
-                                View Details
-                              </span>
-                            </button>
-                            <button
-                              className="inline-flex items-center justify-center w-10 h-10 rounded-md transition-all cursor-pointer
-                                         hover:shadow-sm text-gray-600 hover:text-green-600 bg-gray-50 hover:bg-green-50
-                                         group relative border border-gray-200"
-                              title="Edit Plan"
-                              onClick={() => navigate(`/plans/${plan.id}/edit`)}
-                            >
-                              <Edit className="w-5 h-5" />
-                              <span className="hidden md:block absolute -bottom-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-10">
-                                Edit Plan
-                              </span>
-                            </button>
-                          </div>
+                        <div className="col-span-1 flex items-center justify-center">
+                          <button
+                            className="inline-flex items-center justify-center w-10 h-10 rounded-md transition-all cursor-pointer
+                                       hover:shadow-sm text-gray-600 hover:text-green-600 bg-gray-50 hover:bg-green-50
+                                       group relative border border-gray-200"
+                            title="Edit Plan"
+                            onClick={() => openEditModal(plan)}
+                          >
+                            <Edit className="w-5 h-5" />
+                            <span className="hidden md:block absolute -bottom-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-10">
+                              Edit Plan
+                            </span>
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -358,8 +374,8 @@ const Plans = () => {
                           {/* Benefits */}
                           <div>
                             <div className="text-xs text-gray-500 mb-1">Benefits</div>
-                            <div className="text-sm text-gray-900">
-                              {plan.benefits ? (plan.benefits.length > 30 ? plan.benefits.substring(0, 30) + "..." : plan.benefits) : "N/A"}
+                            <div className="text-sm text-gray-900 break-words">
+                              {plan.benefits || "N/A"}
                             </div>
                           </div>
                         </div>
@@ -368,15 +384,8 @@ const Plans = () => {
                       {/* Action Buttons */}
                       <div className="flex items-center justify-center gap-2 pt-3 border-t border-gray-100">
                         <button
-                          className="flex-1 flex items-center justify-center gap-1 px-3 py-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors text-xs font-medium"
-                          onClick={() => navigate(`/plans/${plan.id}`)}
-                        >
-                          <Eye className="w-3 h-3" />
-                          View
-                        </button>
-                        <button
                           className="flex-1 flex items-center justify-center gap-1 px-3 py-2 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 transition-colors text-xs font-medium"
-                          onClick={() => navigate(`/plans/${plan.id}/edit`)}
+                          onClick={() => openEditModal(plan)}
                         >
                           <Edit className="w-3 h-3" />
                           Edit
@@ -469,11 +478,106 @@ const Plans = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-lg text-white
-                             bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500
-                             hover:from-emerald-600 hover:to-cyan-600"
+                  className="px-4 py-2 rounded-lg text-white shadow-md
+                             bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500
+                             hover:from-purple-600 hover:to-cyan-600
+                             transition-transform hover:scale-[1.02] cursor-pointer"
                 >
                   Add Plan
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Plan Modal */}
+      {showEditModal && editingPlan && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">Edit Plan</h3>
+            </div>
+            <form onSubmit={handleEditPlan} className="p-6 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Plan Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={editingPlan.name}
+                    onChange={(e) => setEditingPlan({ ...editingPlan, name: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Plan Code</label>
+                  <input
+                    type="text"
+                    value={editingPlan.code}
+                    onChange={(e) => setEditingPlan({ ...editingPlan, code: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Monthly Price</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={editingPlan.monthlyPrice}
+                    onChange={(e) => setEditingPlan({ ...editingPlan, monthlyPrice: parseFloat(e.target.value) || 0 })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">GST Rate (%)</label>
+                  <input
+                    type="number"
+                    value={editingPlan.gstRate}
+                    onChange={(e) => setEditingPlan({ ...editingPlan, gstRate: parseInt(e.target.value) || 0 })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Benefits</label>
+                  <textarea
+                    rows="3"
+                    value={editingPlan.benefits}
+                    onChange={(e) => setEditingPlan({ ...editingPlan, benefits: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                  <select
+                    value={editingPlan.isActive}
+                    onChange={(e) => setEditingPlan({ ...editingPlan, isActive: e.target.value === "true" })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                  >
+                    <option value={true}>Active</option>
+                    <option value={false}>Inactive</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowEditModal(false);
+                    setEditingPlan(null);
+                  }}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-lg text-white shadow-md
+                             bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500
+                             hover:from-purple-600 hover:to-cyan-600
+                             transition-transform hover:scale-[1.02] cursor-pointer"
+                >
+                  Update Plan
                 </button>
               </div>
             </form>

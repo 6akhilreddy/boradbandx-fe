@@ -5,6 +5,7 @@ import {
   createAgent,
   updateAgent,
   deleteAgent,
+  getAgentPaymentHistory,
 } from "../api/agentApi";
 
 const useAgentStore = create((set, get) => ({
@@ -76,7 +77,18 @@ const useAgentStore = create((set, get) => ({
 
   clearError: () => set({ error: null }),
   clearCurrentAgent: () => set({ currentAgent: null }),
+
+  fetchAgentPaymentHistory: async (id, params = {}) => {
+    set({ loading: true, error: null });
+    try {
+      const payments = await getAgentPaymentHistory(id, params);
+      set({ loading: false });
+      return payments;
+    } catch (err) {
+      set({ error: err.message, loading: false });
+      throw err;
+    }
+  },
 }));
 
 export default useAgentStore;
-

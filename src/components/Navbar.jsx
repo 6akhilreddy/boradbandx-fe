@@ -7,13 +7,10 @@ import { logout } from "../api/authApi";
 
 const Navbar = () => {
   const navigate = useNavigate();
-  const { user } = useUserStore();
-  const clearUser = useUserStore((state) => state.clearUser);
-  const logoutUser = useUserStore((state) => state.logout);
+  const { user, clearUser } = useUserStore();
 
-  const companyName = user?.company?.name || user?.companyName || "BroadbandX";
+  const companyName = user?.company?.name || user?.companyName || "Srishti Broadband";
   const username = user?.name || "User";
-  const userRole = user?.roleCode || "User";
 
   // Separate states/refs for mobile and desktop menus
   const [openMobile, setOpenMobile] = useState(false);
@@ -26,7 +23,6 @@ const Navbar = () => {
 
   const handleLogout = () => {
     logout();
-    logoutUser();
     clearUser();
     navigate("/login", { replace: true });
   };
@@ -103,114 +99,122 @@ const Navbar = () => {
               <Menu className="h-5 w-5" />
             </button>
 
-            {/* Mobile dropdown */}
             {openMobile && (
               <div
                 ref={mobileMenuRef}
-                className="absolute right-0 top-full mt-1 w-56 rounded-lg bg-white shadow-lg ring-1 ring-black/5 py-1"
+                role="menu"
+                className="absolute right-0 mt-2 w-56 overflow-hidden rounded-lg bg-white text-gray-800 shadow-xl"
               >
-                {/* User info */}
-                <div className="px-4 py-3 border-b border-gray-100">
-                  <p className="text-sm font-medium text-gray-900">{username}</p>
-                  <p className="text-xs text-gray-500 capitalize">
-                    {userRole.toLowerCase().replace('_', ' ')}
-                  </p>
-                  {user?.email && (
-                    <p className="text-xs text-gray-500 truncate">{user.email}</p>
-                  )}
+                {/* Header (underlined) */}
+                <div className="px-4 py-3 border-b border-gray-200">
+                  <p className="text-sm font-medium">{username}</p>
+                  {user?.email ? (
+                    <p className="mt-0.5 flex items-center text-xs text-gray-500 truncate">
+                      <Mail className="mr-1 h-4 w-4" />
+                      {user.email}
+                    </p>
+                  ) : null}
                 </div>
 
-                {/* Menu items */}
+                {/* Profile (underlined, with icon, hover anim, cursor) */}
                 <button
+                  role="menuitem"
                   onClick={handleProfile}
-                  className="flex w-full items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                  className="w-full flex items-center gap-2 px-4 py-2 text-left text-sm border-b border-gray-200 hover:bg-gray-50 hover:pl-5 transition-all duration-150 ease-out cursor-pointer"
                 >
-                  <User className="h-4 w-4" />
+                  <UserRound className="h-4 w-4" />
                   Profile
                 </button>
 
+                {/* Logout (underlined, hover anim, cursor) */}
                 <button
+                  role="menuitem"
                   onClick={handleLogout}
-                  className="flex w-full items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                  className="w-full flex items-center gap-2 px-4 py-2 text-left text-sm text-red-600 border-b border-gray-200 hover:bg-red-50 hover:pl-5 transition-all duration-150 ease-out cursor-pointer"
                 >
                   <LogOut className="h-4 w-4" />
-                  Sign out
+                  Logout
                 </button>
               </div>
             )}
           </div>
         </div>
 
-        {/* DESKTOP: company (left), user menu (right) */}
-        <div className="hidden md:flex items-center justify-between h-16 w-full px-6">
-          <button
-            onClick={() => navigate("/")}
-            className="flex items-center gap-3 select-none"
-            aria-label="Go to home"
-          >
-            <Wifi className="h-6 w-6 drop-shadow-sm" />
-            <span className="text-lg font-semibold drop-shadow-sm">
+        {/* DESKTOP: BroadbandX (left), Company (center), Profile (right) */}
+        <div className="hidden md:grid grid-cols-3 items-center h-16 w-full px-4">
+          {/* LEFT: Brand */}
+          <div className="justify-self-start pl-3">
+            <button
+              onClick={() => navigate("/")}
+              className="flex items-center gap-2 select-none"
+              aria-label="Go to home"
+            >
+              <Wifi className="h-6 w-6 drop-shadow-sm" />
+              <span className="text-2xl font-semibold tracking-tight drop-shadow-sm">
+                BroadbandX
+              </span>
+            </button>
+          </div>
+
+          {/* CENTER: Company name */}
+          <div className="justify-self-center min-w-0">
+            <span className="block truncate text-lg font-semibold drop-shadow-sm">
               {companyName}
             </span>
-          </button>
+          </div>
 
-          <div className="relative">
+          {/* RIGHT: Profile */}
+          <div className="justify-self-end pr-3 relative">
             <button
               ref={desktopBtnRef}
               onClick={() => setOpenDesktop((v) => !v)}
               aria-haspopup="menu"
               aria-expanded={openDesktop}
-              className="flex items-center gap-3 rounded-lg px-3 py-2 bg-white/15 hover:bg-white/20 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+              className="flex items-center gap-3 rounded-md px-2 py-1.5 hover:bg-white/10 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 transition"
             >
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
-                  <UserRound className="h-4 w-4" />
-                </div>
-                <div className="text-left">
-                  <p className="text-sm font-medium">{username}</p>
-                  <p className="text-xs opacity-90 capitalize">
-                    {userRole.toLowerCase().replace('_', ' ')}
-                  </p>
-                </div>
-              </div>
-              <ChevronDown className="h-4 w-4 transition-transform duration-200" />
+              <span className="h-9 w-9 grid place-items-center rounded-md bg-white/20 ring-1 ring-white/30 hover:bg-white/25">
+                <User className="h-5 w-5 text-white" />
+              </span>
+              <span className="text-sm font-medium">{username}</span>
+              <ChevronDown className="h-4 w-4 opacity-80" />
             </button>
 
-            {/* Desktop dropdown */}
+            {/* Dropdown */}
             {openDesktop && (
               <div
                 ref={desktopMenuRef}
-                className="absolute right-0 top-full mt-1 w-64 rounded-lg bg-white shadow-lg ring-1 ring-black/5 py-1"
+                role="menu"
+                className="absolute right-0 mt-2 w-56 overflow-hidden rounded-lg bg-white text-gray-800 shadow-xl"
               >
-                {/* User info */}
-                <div className="px-4 py-3 border-b border-gray-100">
-                  <p className="text-sm font-medium text-gray-900">{username}</p>
-                  <p className="text-xs text-gray-500 capitalize">
-                    {userRole.toLowerCase().replace('_', ' ')}
-                  </p>
-                  {user?.email && (
-                    <p className="text-xs text-gray-500 truncate">{user.email}</p>
-                  )}
-                  {user?.companyId && (
-                    <p className="text-xs text-gray-500">Company ID: {user.companyId}</p>
-                  )}
+                {/* Header (underlined) */}
+                <div className="px-4 py-3 border-b border-gray-200">
+                  <p className="text-sm font-medium">{username}</p>
+                  {user?.email ? (
+                    <p className="mt-0.5 flex items-center text-xs text-gray-500 truncate">
+                      <Mail className="mr-1 h-4 w-4" />
+                      {user.email}
+                    </p>
+                  ) : null}
                 </div>
 
-                {/* Menu items */}
+                {/* Profile (underlined, with icon, hover anim, cursor) */}
                 <button
+                  role="menuitem"
                   onClick={handleProfile}
-                  className="flex w-full items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                  className="w-full flex items-center gap-2 px-4 py-2 text-left text-sm border-b border-gray-200 hover:bg-gray-50 hover:pl-5 transition-all duration-150 ease-out cursor-pointer"
                 >
-                  <User className="h-4 w-4" />
+                  <UserRound className="h-4 w-4" />
                   Profile
                 </button>
 
+                {/* Logout (underlined, hover anim, cursor) */}
                 <button
+                  role="menuitem"
                   onClick={handleLogout}
-                  className="flex w-full items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                  className="w-full flex items-center gap-2 px-4 py-2 text-left text-sm text-red-600 border-b border-gray-200 hover:bg-red-50 hover:pl-5 transition-all duration-150 ease-out cursor-pointer"
                 >
                   <LogOut className="h-4 w-4" />
-                  Sign out
+                  Logout
                 </button>
               </div>
             )}

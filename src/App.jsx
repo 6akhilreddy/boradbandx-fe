@@ -15,18 +15,27 @@ import Unauthorized from "./pages/Unauthorized";
 import routes from "./config/routes";
 import SuperAdminDashboard from "./pages/SuperAdminDashboard";
 import Customers from "./pages/Customers";
+import CustomerAdd from "./pages/CustomerAdd";
 import CustomerDetail from "./pages/CustomerDetail";
 import CustomerEdit from "./pages/CustomerEdit";
 import Plans from "./pages/Plans";
 import Agents from "./pages/Agents";
+import AgentDetail from "./pages/AgentDetail";
+import Collection from "./pages/Collection";
+import Payments from "./pages/Payments";
+import Reports from "./pages/Reports";
 import useUserStore from "./store/userStore";
+import useTokenValidation from "./hooks/useTokenValidation";
 
 // Default redirect component
 const DefaultRedirect = () => {
-  const { user } = useUserStore();
-  const isAuthenticated = useUserStore((state) => state.isAuthenticated);
+  const user = useUserStore((state) => state.user);
+  const token = useUserStore((state) => state.token);
   
-  if (!isAuthenticated()) {
+  // Check authentication directly
+  const isAuthenticated = !!(user && token);
+  
+  if (!isAuthenticated) {
     return <Navigate to={routes.LOGIN} replace />;
   }
   
@@ -45,6 +54,9 @@ const DefaultRedirect = () => {
 };
 
 function App() {
+  // Set up token validation for the entire app
+  useTokenValidation();
+
   return (
     <Router>
       <Routes>
@@ -89,6 +101,14 @@ function App() {
             <CustomerViewRoute>
               <Customers />
             </CustomerViewRoute>
+          }
+        />
+        <Route
+          path="/customers/add"
+          element={
+            <CustomerManageRoute>
+              <CustomerAdd />
+            </CustomerManageRoute>
           }
         />
         <Route
@@ -147,7 +167,7 @@ function App() {
           path="/agents/:id"
           element={
             <AgentManageRoute>
-              <Agents />
+              <AgentDetail />
             </AgentManageRoute>
           }
         />
@@ -159,6 +179,38 @@ function App() {
             </AgentManageRoute>
           }
         />
+
+        {/* Collection Routes */}
+        <Route
+          path="/collection"
+          element={
+            <ProtectedRoute requiredPermission="collection.view">
+              <Collection />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Payments Routes */}
+        <Route
+          path="/payments"
+          element={
+            <ProtectedRoute requiredPermission="payments.view">
+              <Payments />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Reports Routes */}
+        <Route
+          path="/reports"
+          element={
+            <ProtectedRoute requiredPermission="reports.view">
+              <Reports />
+            </ProtectedRoute>
+          }
+        />
+
+
 
         {/* Default redirect based on user role */}
         <Route path="/" element={<DefaultRedirect />} />

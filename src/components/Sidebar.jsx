@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   CreditCard,
-  DollarSign,
+  IndianRupee,
   User,
   FileText,
   UsersRound,
@@ -76,7 +76,7 @@ const Sidebar = () => {
     { 
       name: "Collection", 
       path: "/collection", 
-      icon: DollarSign, 
+      icon: IndianRupee, 
       show: hasPermission("collection.view") || hasPermission("collection.manage") 
     },
     

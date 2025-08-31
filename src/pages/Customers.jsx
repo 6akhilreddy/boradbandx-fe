@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
 import useCustomerStore from "../store/customerStore";
 import Spinner from "../components/Spinner";
+import pendingChargeApi from "../api/pendingChargeApi";
 import {
   Search,
   Plus,
@@ -12,6 +13,8 @@ import {
   Wallet,
   Filter,
   X,
+  Receipt,
+  FileText,
 } from "lucide-react";
 
 const Customers = () => {
@@ -36,34 +39,13 @@ const Customers = () => {
   const [pageIndex, setPageIndex] = useState(1);
 
   // modal
-  const [showAddModal, setShowAddModal] = useState(false);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
-  const [newCustomer, setNewCustomer] = useState({
-    customer: {
-      fullName: "",
-      phone: "",
-      email: "",
-      address: "",
-      customerCode: "",
-      areaId: "",
-      assignedAgentId: "",
-      installationDate: "",
-      securityDeposit: 0,
-      gstNumber: "",
-      advance: 0,
-      remarks: "",
-    },
-    hardware: { deviceType: "", macAddress: "", ipAddress: "" },
-    subscription: {
-      planId: "",
-      agreedMonthlyPrice: 0,
-      billingType: "POSTPAID",
-      billingCycle: "MONTHLY",
-      billingCycleValue: 1,
-      additionalCharge: 0,
-      discount: 0,
-      status: "ACTIVE",
-    },
+  const [showAddBillModal, setShowAddBillModal] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [billForm, setBillForm] = useState({
+    amount: '',
+    description: '',
+    chargeType: 'OTHER'
   });
 
   // initial fetch
@@ -114,12 +96,7 @@ const Customers = () => {
     });
   };
 
-  const handleAddCustomer = async (e) => {
-    e.preventDefault();
-    await addCustomer(newCustomer);
-    setShowAddModal(false);
-    handlePageChange(1);
-  };
+
 
   const getBalanceStatus = (balance) => {
     if (balance === 0) return { text: "Paid", class: "bg-emerald-100 text-emerald-700" };
@@ -127,17 +104,68 @@ const Customers = () => {
     return { text: "Credit", class: "bg-blue-100 text-blue-700" };
   };
 
+  const handleAddBill = (customer) => {
+    setSelectedCustomer(customer);
+    setBillForm({
+      amount: '',
+      description: '',
+      chargeType: 'OTHER'
+    });
+    setShowAddBillModal(true);
+  };
+
+  const handleBillSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedCustomer || !billForm.amount || !billForm.description) {
+      return;
+    }
+
+    try {
+      await pendingChargeApi.createPendingCharge({
+        customerId: selectedCustomer.id,
+        chargeType: billForm.chargeType,
+        description: billForm.description,
+        amount: parseFloat(billForm.amount)
+      });
+
+      setShowAddBillModal(false);
+      setSelectedCustomer(null);
+      setBillForm({
+        amount: '',
+        description: '',
+        chargeType: 'OTHER'
+      });
+
+      // Refresh customers list
+      fetchCustomers({
+        page: pageIndex,
+        limit: pageSize,
+        ...(search && { search }),
+        ...(areaFilter && { areaId: areaFilter }),
+        ...(paymentStatusFilter && { paymentStatus: paymentStatusFilter }),
+      });
+    } catch (error) {
+      console.error('Error adding bill item:', error);
+      alert('Failed to add bill item. Please try again.');
+    }
+  };
+
+  const handleViewHistory = (customer) => {
+    // Navigate to reports page with user selected
+    navigate(`/reports?tab=user&customerId=${customer.id}&customerName=${encodeURIComponent(customer.fullName)}&customerCode=${encodeURIComponent(customer.customerCode || '')}&customerPhone=${encodeURIComponent(customer.phone || '')}&customerArea=${encodeURIComponent(customer.areaName || '')}`);
+  };
+
   return (
     <Layout>
       {/* Header (stack on mobile) */}
-      <div className="mt-2 mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between min-w-0">
+      <div className="mt-2 mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between min-w-0">
         <h2 className="text-2xl font-bold sm:truncate">Customers</h2>
         <button
-          onClick={() => setShowAddModal(true)}
+          onClick={() => navigate("/customers/add")}
           className="w-full sm:w-auto justify-center text-white px-4 py-2 rounded-lg shadow-md
                      bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500
                      hover:from-purple-600 hover:to-cyan-600
-                     transition-transform hover:scale-[1.02] text-sm sm:text-base"
+                     transition-transform hover:scale-[1.02] text-sm sm:text-base cursor-pointer"
         >
           <span className="inline-flex items-center gap-2">
             <Plus className="w-4 h-4" />
@@ -147,7 +175,7 @@ const Customers = () => {
       </div>
 
       {/* Search & Filters */}
-      <div className="bg-white p-3 rounded-xl shadow mb-2">
+      <div className="bg-white p-4 rounded-xl shadow mb-4">
         {/* Desktop Layout */}
         <div className="hidden lg:flex flex-row gap-3 items-center">
           {/* Search */}
@@ -167,8 +195,8 @@ const Customers = () => {
           <select
             value={areaFilter}
             onChange={(e) => setAreaFilter(e.target.value)}
-            className="w-48 px-4 py-2 rounded-full bg-gray-100 border border-transparent
-                       focus:outline-none focus:ring-2 focus:ring-emerald-400"
+            className="w-48 px-4 py-2 rounded-lg bg-gray-100 border border-transparent
+                       focus:outline-none focus:ring-2 focus:ring-emerald-400 pr-8"
           >
             <option value="">All Areas</option>
             <option value="1">North Zone</option>
@@ -182,8 +210,8 @@ const Customers = () => {
           <select
             value={paymentStatusFilter}
             onChange={(e) => setPaymentStatusFilter(e.target.value)}
-            className="w-48 px-4 py-2 rounded-full bg-gray-100 border border-transparent
-                       focus:outline-none focus:ring-2 focus:ring-emerald-400"
+            className="w-48 px-4 py-2 rounded-lg bg-gray-100 border border-transparent
+                       focus:outline-none focus:ring-2 focus:ring-emerald-400 pr-8"
           >
             <option value="">All Payments</option>
             <option value="paid">Paid</option>
@@ -254,7 +282,7 @@ const Customers = () => {
                   value={areaFilter}
                   onChange={(e) => setAreaFilter(e.target.value)}
                   className="w-full px-3 py-2 rounded-lg bg-white border border-gray-200
-                             focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                             focus:outline-none focus:ring-2 focus:ring-emerald-400 pr-8"
                 >
                   <option value="">All Areas</option>
                   <option value="1">North Zone</option>
@@ -272,7 +300,7 @@ const Customers = () => {
                   value={paymentStatusFilter}
                   onChange={(e) => setPaymentStatusFilter(e.target.value)}
                   className="w-full px-3 py-2 rounded-lg bg-white border border-gray-200
-                             focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                             focus:outline-none focus:ring-2 focus:ring-emerald-400 pr-8"
                 >
                   <option value="">All Payments</option>
                   <option value="paid">Paid</option>
@@ -302,24 +330,23 @@ const Customers = () => {
           {/* Desktop Table Layout */}
           <div className="hidden lg:block">
             {/* Desktop Header Row */}
-            <div className="bg-white rounded-xl shadow-sm overflow-hidden mb-1">
+            <div className="bg-white rounded-xl shadow-sm overflow-hidden mb-3">
               <div className="overflow-x-auto max-w-full">
-                <div className="grid grid-cols-10 gap-4 px-6 py-4 bg-gray-50 w-full">
-                  <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider">S.CODE</div>
+                <div className="grid grid-cols-8 gap-4 px-6 py-4 bg-gray-50 w-full min-w-[1200px]">
+                  <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider w-24">S.CODE</div>
                   <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider">CUSTOMER</div>
-                  <div className="col-span-2 text-xs font-semibold text-gray-600 uppercase tracking-wider">HARDWARE</div>
-                  <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider">BALANCE</div>
-                  <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider">AREA</div>
-                  <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider">PLAN</div>
-                  <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider">DUE DATE</div>
-                  <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider">STATUS</div>
-                  <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider text-right">ACTION</div>
+                  <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider w-20">BALANCE</div>
+                  <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider w-24">AREA</div>
+                  <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider w-32">PLAN</div>
+                  <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider w-24">DUE DATE</div>
+                  <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider w-20">STATUS</div>
+                  <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider w-24 text-right">ACTION</div>
                 </div>
               </div>
             </div>
 
             {/* Desktop Data Rows */}
-            <div className="space-y-2 w-full">
+            <div className="space-y-3 w-full">
               {customers.length === 0 ? (
                 <div className="bg-white rounded-xl shadow-sm p-6 text-center text-gray-500">
                   No customers found
@@ -333,10 +360,10 @@ const Customers = () => {
                       key={c.id}
                       className="bg-white rounded-xl shadow-sm p-4 border border-gray-100 hover:shadow-md transition-shadow duration-200"
                     >
-                      <div className="grid grid-cols-10 gap-4 items-center w-full">
+                      <div className="grid grid-cols-8 gap-4 items-center w-full min-w-[1200px]">
                         {/* S.CODE */}
-                        <div className="col-span-1 flex items-center min-w-0">
-                          <div className="font-medium text-gray-900 truncate">{c.customerCode}</div>
+                        <div className="col-span-1 flex items-center min-w-0 w-24">
+                          <div className="font-medium text-gray-900 truncate w-full">{c.customerCode}</div>
                         </div>
 
                         {/* CUSTOMER */}
@@ -347,26 +374,18 @@ const Customers = () => {
                           </div>
                         </div>
 
-                        {/* HARDWARE */}
-                        <div className="col-span-2 flex items-center min-w-0">
-                          <div className="font-mono text-xs text-gray-700 min-w-0 w-full">
-                            {c.macAddress ? <div className="truncate">MAC: {c.macAddress}</div> : null}
-                            {c.ipAddress ? <div className="truncate">IP:&nbsp;&nbsp;&nbsp;{c.ipAddress}</div> : null}
-                          </div>
-                        </div>
-
                         {/* BALANCE */}
-                        <div className="col-span-1 flex items-center min-w-0">
-                          <div className="font-medium text-gray-900 truncate">₹{c.balance || 0}</div>
+                        <div className="col-span-1 flex items-center min-w-0 w-20">
+                          <div className="font-medium text-gray-900 truncate w-full">₹{c.balance || 0}</div>
                         </div>
 
                         {/* AREA */}
-                        <div className="col-span-1 flex items-center min-w-0">
-                          <div className="text-sm text-gray-700 truncate min-w-0 w-full">{c.areaName || ""}</div>
+                        <div className="col-span-1 flex items-center min-w-0 w-24">
+                          <div className="text-sm text-gray-700 truncate w-full">{c.areaName || ""}</div>
                         </div>
 
                         {/* PLAN */}
-                        <div className="col-span-1 flex items-center min-w-0">
+                        <div className="col-span-1 flex items-center min-w-0 w-32">
                           <div className="text-sm min-w-0 w-full">
                             <div className="font-semibold text-gray-900 truncate">{c.planName || ""}</div>
                             {price ? <div className="text-gray-500 truncate">₹{price}/month</div> : null}
@@ -374,21 +393,21 @@ const Customers = () => {
                         </div>
 
                         {/* DUE DATE */}
-                        <div className="col-span-1 flex items-center min-w-0">
-                          <div className="text-sm text-gray-700 truncate min-w-0 w-full">
+                        <div className="col-span-1 flex items-center min-w-0 w-24">
+                          <div className="text-sm text-gray-700 truncate w-full">
                             {c.dueDate ? new Date(c.dueDate).toLocaleDateString() : ""}
                           </div>
                         </div>
 
                         {/* STATUS */}
-                        <div className="col-span-1 flex items-center min-w-0">
-                          <span className={`px-3 py-1 text-xs font-semibold rounded-full ${badge.class} truncate`}>
+                        <div className="col-span-1 flex items-center min-w-0 w-20">
+                          <span className={`px-3 py-1 text-xs font-semibold rounded-full ${badge.class} truncate w-full text-center`}>
                             {badge.text}
                           </span>
                         </div>
 
                         {/* ACTION */}
-                        <div className="col-span-1 flex items-center justify-end">
+                        <div className="col-span-1 flex items-center justify-center min-w-0 w-24">
                           <div className="flex gap-2">
                             <button
                               className="inline-flex items-center justify-center w-10 h-10 rounded-md transition-all cursor-pointer
@@ -404,10 +423,34 @@ const Customers = () => {
                             </button>
                             <button
                               className="inline-flex items-center justify-center w-10 h-10 rounded-md transition-all cursor-pointer
+                                         hover:shadow-sm text-gray-600 hover:text-green-600 bg-gray-50 hover:bg-green-50
+                                         group relative border border-gray-200"
+                              title="Add to Bill"
+                              onClick={() => handleAddBill(c)}
+                            >
+                              <Receipt className="w-5 h-5" />
+                              <span className="hidden md:block absolute -bottom-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-10">
+                                Add to Bill
+                              </span>
+                            </button>
+                            <button
+                              className="inline-flex items-center justify-center w-10 h-10 rounded-md transition-all cursor-pointer
+                                         hover:shadow-sm text-gray-600 hover:text-purple-600 bg-gray-50 hover:bg-purple-50
+                                         group relative border border-gray-200"
+                              title="View History"
+                              onClick={() => handleViewHistory(c)}
+                            >
+                              <FileText className="w-5 h-5" />
+                              <span className="hidden md:block absolute -bottom-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-10">
+                                View History
+                              </span>
+                            </button>
+                            <button
+                              className="inline-flex items-center justify-center w-10 h-10 rounded-md transition-all cursor-pointer
                                          hover:shadow-sm text-gray-600 hover:text-blue-600 bg-gray-50 hover:bg-blue-50
                                          group relative border border-gray-200"
                               title="Collection"
-                              onClick={() => navigate(`/collections/new?customerId=${c.id}`)}
+                              onClick={() => navigate(`/payments?customerId=${c.id}`)}
                             >
                               <Wallet className="w-5 h-5" />
                               <span className="hidden md:block absolute -bottom-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-10">
@@ -431,7 +474,7 @@ const Customers = () => {
                 No customers found
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {customers.map((c) => {
                   const badge = getBalanceStatus(c.balance);
                   const price = c.agreedMonthlyPrice ?? c.monthlyPrice;
@@ -450,10 +493,10 @@ const Customers = () => {
                         </span>
                       </div>
 
-                      {/* Two Column Layout for Data */}
-                      <div className="grid grid-cols-2 gap-4 mb-4">
+                                            {/* Two Column Layout for Data */}
+                      <div className="grid grid-cols-2 gap-6 mb-4">
                         {/* Left Column */}
-                        <div className="space-y-3">
+                        <div className="space-y-4">
                           {/* Customer Name and Phone */}
                           <div>
                             <div className="text-sm font-semibold text-gray-900 mb-1">{c.fullName}</div>
@@ -474,7 +517,7 @@ const Customers = () => {
                         </div>
 
                         {/* Right Column */}
-                        <div className="space-y-3">
+                        <div className="space-y-4">
                           {/* Plan */}
                           <div>
                             <div className="text-xs text-gray-500 mb-1">Plan</div>
@@ -489,32 +532,37 @@ const Customers = () => {
                               {c.dueDate ? new Date(c.dueDate).toLocaleDateString() : ""}
                             </div>
                           </div>
-
-                          {/* Hardware Info */}
-                          <div>
-                            <div className="text-xs text-gray-500 mb-1">Hardware</div>
-                            <div className="text-xs text-gray-900 space-y-1">
-                              {c.macAddress && <div>MAC: {c.macAddress}</div>}
-                              {c.ipAddress && <div>IP: {c.ipAddress}</div>}
-                            </div>
-                          </div>
                         </div>
                       </div>
 
                       {/* Action Buttons */}
-                      <div className="flex items-center justify-center gap-2 pt-3 border-t border-gray-100">
+                      <div className="grid grid-cols-2 gap-2 pt-4 border-t border-gray-100">
                         <button
-                          className="flex-1 flex items-center justify-center gap-1 px-3 py-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors text-xs font-medium"
+                          className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors text-sm font-medium"
                           onClick={() => navigate(`/customers/${c.id}`)}
                         >
-                          <Eye className="w-3 h-3" />
+                          <Eye className="w-4 h-4" />
                           View
                         </button>
                         <button
-                          className="flex-1 flex items-center justify-center gap-1 px-3 py-2 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 transition-colors text-xs font-medium"
-                          onClick={() => navigate(`/collections/new?customerId=${c.id}`)}
+                          className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 transition-colors text-sm font-medium"
+                          onClick={() => handleAddBill(c)}
                         >
-                          <Wallet className="w-3 h-3" />
+                          <Receipt className="w-4 h-4" />
+                          Add Bill
+                        </button>
+                        <button
+                          className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-purple-50 text-purple-600 hover:bg-purple-100 transition-colors text-sm font-medium"
+                          onClick={() => handleViewHistory(c)}
+                        >
+                          <FileText className="w-4 h-4" />
+                          History
+                        </button>
+                        <button
+                          className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-orange-50 text-orange-600 hover:bg-orange-100 transition-colors text-sm font-medium"
+                          onClick={() => navigate(`/payments?customerId=${c.id}`)}
+                        >
+                          <Wallet className="w-4 h-4" />
                           Collection
                         </button>
                       </div>
@@ -672,36 +720,102 @@ const Customers = () => {
         </>
       )}
 
-      {/* Add Customer Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">Add New Customer</h3>
+      {/* Add Bill Modal */}
+      {showAddBillModal && selectedCustomer && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-lg flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-hidden shadow-2xl">
+            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Add to Bill - {selectedCustomer.fullName}
+              </h3>
+              <button
+                onClick={() => {
+                  setShowAddBillModal(false);
+                  setSelectedCustomer(null);
+                }}
+                className="p-2 bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 rounded-lg transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
-            <form onSubmit={handleAddCustomer} className="p-6 space-y-6">
-              {/* keep your existing fields... */}
-              <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+            <form onSubmit={handleBillSubmit} className="p-6">
+              <div className="space-y-4">
+                {/* Charge Type */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Charge Type
+                  </label>
+                  <select
+                    value={billForm.chargeType}
+                    onChange={(e) => setBillForm(prev => ({ ...prev, chargeType: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-400 focus:border-transparent"
+                    required
+                  >
+                    <option value="ROUTER_INSTALLATION">Router Installation</option>
+                    <option value="EQUIPMENT_CHARGE">Equipment Charge</option>
+                    <option value="LATE_FEE">Late Fee</option>
+                    <option value="ADJUSTMENT">Adjustment</option>
+                    <option value="OTHER">Other</option>
+                  </select>
+                </div>
+
+                {/* Amount */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Amount (₹)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={billForm.amount}
+                    onChange={(e) => setBillForm(prev => ({ ...prev, amount: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-400 focus:border-transparent"
+                    placeholder="Enter amount"
+                    required
+                  />
+                </div>
+
+                {/* Description */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Description
+                  </label>
+                  <textarea
+                    value={billForm.description}
+                    onChange={(e) => setBillForm(prev => ({ ...prev, description: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-400 focus:border-transparent"
+                    placeholder="Enter description for this charge"
+                    rows="3"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
                 <button
                   type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                  onClick={() => {
+                    setShowAddBillModal(false);
+                    setSelectedCustomer(null);
+                  }}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-lg text-white
-                             bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500
-                             hover:from-emerald-600 hover:to-cyan-600"
+                  className="px-4 py-2 bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500 text-white rounded-lg text-sm font-medium hover:from-purple-600 hover:via-blue-600 hover:to-cyan-600 transition-all duration-200 shadow-md hover:shadow-lg cursor-pointer"
                 >
-                  Add Customer
+                  Add to Bill
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
+
     </Layout>
   );
 };

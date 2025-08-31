@@ -2,6 +2,7 @@ import { Navigate, useLocation } from "react-router-dom";
 import useUserStore from "../store/userStore";
 import ROUTES from "../config/routes";
 import Spinner from "./Spinner";
+import { validateAndHandleToken } from "../utils/tokenUtils";
 
 const ProtectedRoute = ({ 
   children, 
@@ -9,14 +10,21 @@ const ProtectedRoute = ({
   requiredRole = null,
   fallbackRoute = ROUTES.UNAUTHORIZED 
 }) => {
-  const { user } = useUserStore();
-  const isAuthenticated = useUserStore((state) => state.isAuthenticated);
+  const user = useUserStore((state) => state.user);
+  const token = useUserStore((state) => state.token);
   const hasPermission = useUserStore((state) => state.hasPermission);
   const hasRole = useUserStore((state) => state.hasRole);
   const location = useLocation();
 
+  // Validate token and handle expiration
+  if (user && token) {
+    validateAndHandleToken();
+  }
+
+  const isAuthenticated = !!(user && token);
+
   console.log("ProtectedRoute check:", {
-    isAuthenticated: isAuthenticated(),
+    isAuthenticated,
     user: user?.roleCode,
     requiredPermission,
     requiredRole,
@@ -24,7 +32,7 @@ const ProtectedRoute = ({
   });
 
   // If user is not authenticated, redirect to login
-  if (!isAuthenticated()) {
+  if (!isAuthenticated) {
     console.log("User not authenticated, redirecting to login");
     return <Navigate to={ROUTES.LOGIN} state={{ from: location }} replace />;
   }

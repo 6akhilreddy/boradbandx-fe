@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { jwtDecode } from "jwt-decode";
 import useUserStore from "../store/userStore";
+import { validateAndHandleToken } from "../utils/tokenUtils";
 
 const useAuth = () => {
   const [loading, setLoading] = useState(true);
@@ -12,16 +13,12 @@ const useAuth = () => {
     const checkAuth = () => {
       try {
         if (token && user) {
-          const decoded = jwtDecode(token);
-
-          // Check if token is expired
-          if (decoded.exp * 1000 > Date.now()) {
+          // Use the utility function to validate token
+          if (validateAndHandleToken()) {
             // Token is valid, user is authenticated
             setLoading(false);
           } else {
-            // Token expired, clear everything
-            console.log("Token expired, logging out");
-            logoutUser();
+            // Token is invalid/expired, utility function handles logout and redirect
             setLoading(false);
           }
         } else {

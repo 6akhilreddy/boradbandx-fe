@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import Layout from "../components/Layout";
 import useCustomerStore from "../store/customerStore";
@@ -10,20 +10,14 @@ import useUserStore from "../store/userStore";
 import Spinner from "../components/Spinner";
 import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 
-const CustomerEdit = () => {
-  const { id } = useParams();
+const CustomerAdd = () => {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const {
-    currentCustomer,
-    fetchCustomerById,
-    editCustomer,
-    clearError,
-    clearCurrentCustomer,
-  } = useCustomerStore();
+  const { addCustomer } = useCustomerStore();
   const { agents, fetchAgents } = useAgentStore();
   const { plans, fetchPlans } = usePlanStore();
   const { areas, fetchAreas } = useAreaStore();
@@ -51,7 +45,6 @@ const CustomerEdit = () => {
     setValue,
     formState: { errors, isValid },
     trigger,
-    reset,
   } = useForm({
     mode: "onChange",
     defaultValues: {
@@ -70,7 +63,6 @@ const CustomerEdit = () => {
       gstNumber: "",
       advance: 0,
       remarks: "",
-      isActive: true,
       
       // Hardware Details
       deviceType: "",
@@ -99,7 +91,6 @@ const CustomerEdit = () => {
           fetchAgents(),
           fetchPlans(),
           fetchAreas(),
-          fetchCustomerById(id),
         ]);
       } catch (err) {
         setError("Failed to load form data");
@@ -109,50 +100,9 @@ const CustomerEdit = () => {
     };
 
     fetchData();
-    return () => {
-      clearCurrentCustomer();
-    };
-  }, [id, fetchAgents, fetchPlans, fetchAreas, fetchCustomerById, clearCurrentCustomer]);
+  }, [fetchAgents, fetchPlans, fetchAreas]);
 
-  // Populate form when customer data is loaded
-  useEffect(() => {
-    if (currentCustomer) {
-      reset({
-        // Customer Details
-        fullName: currentCustomer.fullName || "",
-        phone: currentCustomer.phone || "",
-        phoneSecondary: currentCustomer.phoneSecondary || "",
-        email: currentCustomer.email || "",
-        address: currentCustomer.address || "",
-        areaId: currentCustomer.areaId || "",
-        customerCode: currentCustomer.customerCode || "",
-        billingName: currentCustomer.billingName || "",
-        assignedAgentId: currentCustomer.assignedAgentId || user?.id || "",
-        installationDate: currentCustomer.installationDate || new Date().toISOString().split('T')[0],
-        securityDeposit: currentCustomer.securityDeposit || 0,
-        gstNumber: currentCustomer.gstNumber || "",
-        advance: currentCustomer.advance || 0,
-        remarks: currentCustomer.remarks || "",
-        isActive: currentCustomer.isActive !== undefined ? currentCustomer.isActive : true,
-        
-        // Hardware Details
-        deviceType: currentCustomer.hardware?.deviceType || "",
-        macAddress: currentCustomer.hardware?.macAddress || "",
-        ipAddress: currentCustomer.hardware?.ipAddress || "",
-        
-        // Subscription Details
-        planId: currentCustomer.subscription?.planId || "",
-        startDate: currentCustomer.subscription?.startDate || new Date().toISOString().split('T')[0],
-        agreedMonthlyPrice: currentCustomer.subscription?.agreedMonthlyPrice || 0,
-        billingType: currentCustomer.subscription?.billingType || "PREPAID",
-        billingCycle: currentCustomer.subscription?.billingCycle || "MONTHLY",
-        billingCycleValue: currentCustomer.subscription?.billingCycleValue || 1,
-        additionalCharge: currentCustomer.subscription?.additionalCharge || 0,
-        discount: currentCustomer.subscription?.discount || 0,
-        status: currentCustomer.subscription?.status || "ACTIVE",
-      });
-    }
-  }, [currentCustomer, reset, user?.id]);
+
 
   const steps = [
     { id: 1, title: "Customer Details" },
@@ -194,7 +144,7 @@ const CustomerEdit = () => {
           gstNumber: data.gstNumber,
           advance: parseInt(data.advance),
           remarks: data.remarks,
-          isActive: data.isActive,
+          createdBy: user.id,
         },
         hardware: {
           deviceType: data.deviceType,
@@ -214,30 +164,20 @@ const CustomerEdit = () => {
         },
       };
 
-      await editCustomer(id, customerData);
-      navigate(`/customers/${id}`);
+      await addCustomer(customerData);
+      navigate("/customers");
     } catch (err) {
-      setError(err.message || "Failed to update customer");
+      setError(err.message || "Failed to create customer");
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading && !currentCustomer) {
+  if (loading && !agents.length && !plans.length) {
     return (
       <Layout>
         <div className="flex items-center justify-center min-h-screen">
-          <Spinner loadingTxt="Loading customer details..." />
-        </div>
-      </Layout>
-    );
-  }
-
-  if (error) {
-    return (
-      <Layout>
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-          {error}
+          <Spinner loadingTxt="Loading form data..." />
         </div>
       </Layout>
     );
@@ -249,16 +189,16 @@ const CustomerEdit = () => {
         {/* Header */}
         <div className="mb-8">
           <button
-            onClick={() => navigate(`/customers/${id}`)}
+            onClick={() => navigate("/customers")}
             className="flex items-center gap-2 text-white px-4 py-2 rounded-lg shadow-md
                        bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500
                        hover:from-purple-600 hover:to-cyan-600
                        transition-transform hover:scale-[1.02] text-sm sm:text-base cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4" />
-            Back to Customer Details
+            Back to Customers
           </button>
-          <h1 className="text-3xl font-bold text-gray-900 mt-4">Edit Customer</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mt-4">Add New Customer</h1>
         </div>
 
         {/* Progress Indicator */}
@@ -431,6 +371,8 @@ const CustomerEdit = () => {
                   )}
                 </div>
 
+
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Assigned Agent
@@ -438,6 +380,7 @@ const CustomerEdit = () => {
                   <select
                     {...register("assignedAgentId")}
                     disabled={user?.roleCode === "AGENT"}
+                    defaultValue={user?.id || ""}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
                   >
                     <option value="">Select Agent</option>
@@ -499,19 +442,6 @@ const CustomerEdit = () => {
                     {...register("advance", { min: 0 })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Status
-                  </label>
-                  <select
-                    {...register("isActive")}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value={true}>Active</option>
-                    <option value={false}>Inactive</option>
-                  </select>
                 </div>
 
                 <div className="col-span-full">
@@ -759,13 +689,13 @@ const CustomerEdit = () => {
                 >
                   {loading ? (
                     <>
-                      <Spinner loadingTxt="Updating..." />
-                      Updating Customer
+                      <Spinner loadingTxt="Creating..." />
+                      Creating Customer
                     </>
                   ) : (
                     <>
                       <Check className="w-4 h-4" />
-                      Update Customer
+                      Create Customer
                     </>
                   )}
                 </button>
@@ -778,4 +708,4 @@ const CustomerEdit = () => {
   );
 };
 
-export default CustomerEdit;
+export default CustomerAdd;

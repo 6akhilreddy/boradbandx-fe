@@ -7,6 +7,7 @@ export const URLS = {
   ADMINS: "/admins",
   AGENTS: "/agents",
   CUSTOMERS: "/customers",
+  AREAS: "/areas",
   SERVICES: "/services",
   PLANS: "/plans",
   ORDERS: "/orders",
@@ -15,4 +16,6 @@ export const URLS = {
   SETTINGS: "/settings",
   NOTIFICATIONS: "/notifications",
   DASHBOARD_STATS: "/dashboard/stats",
+  PAYMENTS: "/payments",
+  DASHBOARD: "/dashboard",
 };

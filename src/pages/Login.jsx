@@ -16,21 +16,22 @@ const Login = () => {
   } = useForm();
   const navigate = useNavigate();
   const [apiError, setApiError] = useState("");
-  const { user } = useUserStore();
+  const user = useUserStore((state) => state.user);
+  const token = useUserStore((state) => state.token);
   const setUser = useUserStore((state) => state.setUser);
-  const isAuthenticated = useUserStore((state) => state.isAuthenticated);
   const isLoading = useApiLoading();
 
   const [showPassword, setShowPassword] = useState(false);
 
   // Check if user is already authenticated and redirect
   useEffect(() => {
-    if (isAuthenticated() && user) {
+    const isAuthenticated = !!(user && token);
+    if (isAuthenticated && user) {
       console.log("User already authenticated, redirecting...", user.roleCode);
       const dashboardRoute = getDashboardRoute(user.roleCode);
       navigate(dashboardRoute, { replace: true });
     }
-  }, [user, navigate]); // Removed isAuthenticated from dependencies since it's a function
+  }, [user, token, navigate]);
 
   const getDashboardRoute = (roleCode) => {
     console.log("Getting dashboard route for role:", roleCode);
@@ -71,7 +72,8 @@ const Login = () => {
   };
 
   // If already authenticated, show loading
-  if (isAuthenticated() && user) {
+  const isAuthenticated = !!(user && token);
+  if (isAuthenticated && user) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-500 p-4">
         <div className="bg-white p-8 shadow-2xl rounded-2xl w-full max-w-md text-center">

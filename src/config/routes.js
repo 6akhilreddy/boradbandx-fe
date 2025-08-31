@@ -5,6 +5,7 @@ const routes = {
   LOGIN: "/login",
   UNAUTHORIZED: "/unauthorized",
   CUSTOMERS: "/customers",
+  CUSTOMER_ADD: "/customers/add",
   CUSTOMER_DETAIL: "/customers/:id",
   CUSTOMER_EDIT: "/customers/:id/edit",
   PLANS: "/plans",
@@ -13,6 +14,12 @@ const routes = {
   AGENTS: "/agents",
   AGENT_DETAIL: "/agents/:id",
   AGENT_EDIT: "/agents/:id/edit",
+  COLLECTION: "/collection",
+  PAYMENTS: "/payments",
+  REPORTS: "/reports",
+  INVOICE_HISTORY: "/reports/invoices",
+  PAYMENT_HISTORY: "/reports/payments",
+  USER_HISTORY: "/reports/user",
 };
 
 export default routes;

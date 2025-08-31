@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useForm } from "react-hook-form";
 import Layout from "../components/Layout";
 import useAgentStore from "../store/agentStore";
 import Spinner from "../components/Spinner";
@@ -10,7 +11,6 @@ import {
   Edit,
   Filter,
   X,
-  DollarSign,
 } from "lucide-react";
 
 const Agents = () => {
@@ -21,6 +21,7 @@ const Agents = () => {
     error,
     fetchAgents,
     addAgent,
+    editAgent,
     clearError,
   } = useAgentStore();
 
@@ -30,14 +31,25 @@ const Agents = () => {
 
   // modal
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingAgent, setEditingAgent] = useState(null);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
-  const [newAgent, setNewAgent] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    password: "",
-    status: "ACTIVE",
-  });
+
+  // form hooks
+  const {
+    register: registerAdd,
+    handleSubmit: handleAddSubmit,
+    reset: resetAdd,
+    formState: { errors: addErrors },
+  } = useForm();
+
+  const {
+    register: registerEdit,
+    handleSubmit: handleEditSubmit,
+    reset: resetEdit,
+    setValue: setEditValue,
+    formState: { errors: editErrors },
+  } = useForm();
 
   // initial fetch
   useEffect(() => {
@@ -57,10 +69,34 @@ const Agents = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, statusFilter]);
 
-  const handleAddAgent = async (e) => {
-    e.preventDefault();
-    await addAgent(newAgent);
-    setShowAddModal(false);
+  const handleAddAgent = async (data) => {
+    try {
+      await addAgent(data);
+      setShowAddModal(false);
+      resetAdd();
+    } catch (error) {
+      console.error("Failed to add agent:", error);
+    }
+  };
+
+  const handleEditAgent = async (data) => {
+    try {
+      await editAgent(editingAgent.id, data);
+      setShowEditModal(false);
+      setEditingAgent(null);
+      resetEdit();
+    } catch (error) {
+      console.error("Failed to edit agent:", error);
+    }
+  };
+
+  const openEditModal = (agent) => {
+    setEditingAgent(agent);
+    setEditValue("name", agent.name || "");
+    setEditValue("email", agent.email || "");
+    setEditValue("phone", agent.phone || "");
+    setEditValue("status", agent.isActive ? "ACTIVE" : "INACTIVE");
+    setShowEditModal(true);
   };
 
   const getStatusBadge = (status) => {
@@ -78,7 +114,7 @@ const Agents = () => {
           className="w-full sm:w-auto justify-center text-white px-4 py-2 rounded-lg shadow-md
                      bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500
                      hover:from-purple-600 hover:to-cyan-600
-                     transition-transform hover:scale-[1.02] text-sm sm:text-base"
+                     transition-transform hover:scale-[1.02] text-sm sm:text-base cursor-pointer"
         >
           <span className="inline-flex items-center gap-2">
             <Plus className="w-4 h-4" />
@@ -208,9 +244,8 @@ const Agents = () => {
             {/* Desktop Header Row */}
             <div className="bg-white rounded-xl shadow-sm overflow-hidden mb-1">
               <div className="overflow-x-auto max-w-full">
-                <div className="grid grid-cols-8 gap-4 px-6 py-4 bg-gray-50 w-full">
+                <div className="grid grid-cols-7 gap-4 px-6 py-4 bg-gray-50 w-full">
                   <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider">NAME</div>
-                  <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider">EMAIL</div>
                   <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider">PHONE</div>
                   <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider">TOTAL COLLECTION</div>
                   <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider">LAST MONTH</div>
@@ -235,15 +270,10 @@ const Agents = () => {
                       key={agent.id}
                       className="bg-white rounded-xl shadow-sm p-4 border border-gray-100 hover:shadow-md transition-shadow duration-200"
                     >
-                      <div className="grid grid-cols-8 gap-4 items-center w-full">
+                      <div className="grid grid-cols-7 gap-4 items-center w-full">
                         {/* NAME */}
                         <div className="col-span-1 flex items-center min-w-0">
                           <div className="text-sm font-semibold text-gray-900 truncate">{agent.name}</div>
-                        </div>
-
-                        {/* EMAIL */}
-                        <div className="col-span-1 flex items-center min-w-0">
-                          <div className="text-sm text-gray-700 truncate">{agent.email}</div>
                         </div>
 
                         {/* PHONE */}
@@ -253,7 +283,7 @@ const Agents = () => {
 
                         {/* TOTAL COLLECTION */}
                         <div className="col-span-1 flex items-center min-w-0">
-                          <div className="font-medium text-gray-900 truncate">₹{agent.collection?.total || 0}</div>
+                          <div className="font-medium text-gray-900 truncate">₹{Math.round(agent.collection?.total || 0)}</div>
                         </div>
 
                         {/* LAST MONTH */}
@@ -293,7 +323,7 @@ const Agents = () => {
                                          hover:shadow-sm text-gray-600 hover:text-green-600 bg-gray-50 hover:bg-green-50
                                          group relative border border-gray-200"
                               title="Edit Agent"
-                              onClick={() => navigate(`/agents/${agent.id}/edit`)}
+                              onClick={() => openEditModal(agent)}
                             >
                               <Edit className="w-5 h-5" />
                               <span className="hidden md:block absolute -bottom-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-10">
@@ -337,12 +367,6 @@ const Agents = () => {
                       <div className="grid grid-cols-2 gap-4 mb-4">
                         {/* Left Column */}
                         <div className="space-y-3">
-                          {/* Email */}
-                          <div>
-                            <div className="text-xs text-gray-500 mb-1">Email</div>
-                            <div className="text-sm text-gray-900">{agent.email}</div>
-                          </div>
-
                           {/* Phone */}
                           <div>
                             <div className="text-xs text-gray-500 mb-1">Phone</div>
@@ -352,7 +376,7 @@ const Agents = () => {
                           {/* Total Collection */}
                           <div>
                             <div className="text-xs text-gray-500 mb-1">Total Collection</div>
-                            <div className="text-lg font-bold text-gray-900">₹{agent.collection?.total || 0}</div>
+                            <div className="text-lg font-bold text-gray-900">₹{Math.round(agent.collection?.total || 0)}</div>
                           </div>
                         </div>
 
@@ -383,7 +407,7 @@ const Agents = () => {
                         </button>
                         <button
                           className="flex-1 flex items-center justify-center gap-1 px-3 py-2 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 transition-colors text-xs font-medium"
-                          onClick={() => navigate(`/agents/${agent.id}/edit`)}
+                          onClick={() => openEditModal(agent)}
                         >
                           <Edit className="w-3 h-3" />
                           Edit
@@ -405,53 +429,76 @@ const Agents = () => {
             <div className="p-6 border-b border-gray-200">
               <h3 className="text-lg font-semibold text-gray-900">Add New Agent</h3>
             </div>
-            <form onSubmit={handleAddAgent} className="p-6 space-y-6">
+            <form onSubmit={handleAddSubmit(handleAddAgent)} className="p-6 space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Name *</label>
                   <input
                     type="text"
-                    required
-                    value={newAgent.name}
-                    onChange={(e) => setNewAgent({ ...newAgent, name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                    {...registerAdd("name", { required: "Name is required" })}
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-400 ${
+                      addErrors.name ? "border-red-300" : "border-gray-300"
+                    }`}
                   />
+                  {addErrors.name && (
+                    <p className="text-red-500 text-sm mt-1">{addErrors.name.message}</p>
+                  )}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Email *</label>
                   <input
                     type="email"
-                    required
-                    value={newAgent.email}
-                    onChange={(e) => setNewAgent({ ...newAgent, email: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                    {...registerAdd("email", { 
+                      required: "Email is required",
+                      pattern: {
+                        value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                        message: "Invalid email address"
+                      }
+                    })}
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-400 ${
+                      addErrors.email ? "border-red-300" : "border-gray-300"
+                    }`}
                   />
+                  {addErrors.email && (
+                    <p className="text-red-500 text-sm mt-1">{addErrors.email.message}</p>
+                  )}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Phone *</label>
                   <input
                     type="tel"
-                    required
-                    value={newAgent.phone}
-                    onChange={(e) => setNewAgent({ ...newAgent, phone: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                    {...registerAdd("phone", { required: "Phone is required" })}
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-400 ${
+                      addErrors.phone ? "border-red-300" : "border-gray-300"
+                    }`}
                   />
+                  {addErrors.phone && (
+                    <p className="text-red-500 text-sm mt-1">{addErrors.phone.message}</p>
+                  )}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Password *</label>
                   <input
                     type="password"
-                    required
-                    value={newAgent.password}
-                    onChange={(e) => setNewAgent({ ...newAgent, password: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                    {...registerAdd("password", { 
+                      required: "Password is required",
+                      minLength: {
+                        value: 6,
+                        message: "Password must be at least 6 characters"
+                      }
+                    })}
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-400 ${
+                      addErrors.password ? "border-red-300" : "border-gray-300"
+                    }`}
                   />
+                  {addErrors.password && (
+                    <p className="text-red-500 text-sm mt-1">{addErrors.password.message}</p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
                   <select
-                    value={newAgent.status}
-                    onChange={(e) => setNewAgent({ ...newAgent, status: e.target.value })}
+                    {...registerAdd("status")}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-400"
                   >
                     <option value="ACTIVE">Active</option>
@@ -462,18 +509,113 @@ const Agents = () => {
               <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
                 <button
                   type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                  onClick={() => {
+                    setShowAddModal(false);
+                    resetAdd();
+                  }}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-lg text-white
-                             bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500
-                             hover:from-emerald-600 hover:to-cyan-600"
+                  className="px-4 py-2 rounded-lg text-white shadow-md
+                             bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500
+                             hover:from-purple-600 hover:to-cyan-600
+                             transition-transform hover:scale-[1.02] cursor-pointer"
                 >
                   Add Agent
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Agent Modal */}
+      {showEditModal && editingAgent && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">Edit Agent</h3>
+            </div>
+            <form onSubmit={handleEditSubmit(handleEditAgent)} className="p-6 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Name *</label>
+                  <input
+                    type="text"
+                    {...registerEdit("name", { required: "Name is required" })}
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-400 ${
+                      editErrors.name ? "border-red-300" : "border-gray-300"
+                    }`}
+                  />
+                  {editErrors.name && (
+                    <p className="text-red-500 text-sm mt-1">{editErrors.name.message}</p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                  <input
+                    type="email"
+                    {...registerEdit("email", { 
+                      pattern: {
+                        value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                        message: "Invalid email address"
+                      }
+                    })}
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-400 ${
+                      editErrors.email ? "border-red-300" : "border-gray-300"
+                    }`}
+                  />
+                  {editErrors.email && (
+                    <p className="text-red-500 text-sm mt-1">{editErrors.email.message}</p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Phone *</label>
+                  <input
+                    type="tel"
+                    {...registerEdit("phone", { required: "Phone is required" })}
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-400 ${
+                      editErrors.phone ? "border-red-300" : "border-gray-300"
+                    }`}
+                  />
+                  {editErrors.phone && (
+                    <p className="text-red-500 text-sm mt-1">{editErrors.phone.message}</p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                  <select
+                    {...registerEdit("status")}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                  >
+                    <option value="ACTIVE">Active</option>
+                    <option value="INACTIVE">Inactive</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowEditModal(false);
+                    setEditingAgent(null);
+                    resetEdit();
+                  }}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-lg text-white shadow-md
+                             bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500
+                             hover:from-purple-600 hover:to-cyan-600
+                             transition-transform hover:scale-[1.02] cursor-pointer"
+                >
+                  Update Agent
                 </button>
               </div>
             </form>

@@ -3,11 +3,15 @@ import { useParams, useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
 import useCustomerStore from "../store/customerStore";
 import Spinner from "../components/Spinner";
-import { ArrowLeft, Edit, Phone, Mail, MapPin, Calendar, CreditCard, Wifi, HardDrive } from "lucide-react";
+import BalanceHistory from "../components/BalanceHistory";
+import AddPendingCharge from "../components/AddPendingCharge";
+import { ArrowLeft, Edit, Phone, Mail, MapPin, Calendar, CreditCard, Wifi, HardDrive, Plus } from "lucide-react";
 
 const CustomerDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState("details");
+  const [showAddPendingCharge, setShowAddPendingCharge] = useState(false);
   const {
     currentCustomer,
     loading,
@@ -65,11 +69,14 @@ const CustomerDetail = () => {
   return (
     <Layout>
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div className="flex items-center gap-4">
           <button
             onClick={() => navigate("/customers")}
-            className="p-2 rounded-lg hover:bg-gray-100"
+            className="p-2 rounded-lg text-white shadow-md
+                       bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500
+                       hover:from-purple-600 hover:to-cyan-600
+                       transition-transform hover:scale-[1.02] cursor-pointer"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
@@ -80,18 +87,51 @@ const CustomerDetail = () => {
         </div>
         <button
           onClick={() => navigate(`/customers/${id}/edit`)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2"
+          className="w-full sm:w-auto px-4 py-2 rounded-lg text-white shadow-md
+                     bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500
+                     hover:from-purple-600 hover:to-cyan-600
+                     transition-transform hover:scale-[1.02] cursor-pointer flex items-center justify-center gap-2"
         >
           <Edit className="w-4 h-4" />
           Edit Customer
         </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Customer Information */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Basic Information */}
-          <div className="bg-white rounded-lg shadow p-6">
+      {/* Tabs */}
+      <div className="bg-white rounded-lg shadow mb-6">
+        <div className="border-b border-gray-200">
+          <nav className="-mb-px flex space-x-8 px-6">
+            <button
+              onClick={() => setActiveTab("details")}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === "details"
+                  ? "border-blue-500 text-blue-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
+            >
+              Customer Details
+            </button>
+            <button
+              onClick={() => setActiveTab("history")}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === "history"
+                  ? "border-blue-500 text-blue-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
+            >
+              Balance History
+            </button>
+          </nav>
+        </div>
+      </div>
+
+      {/* Tab Content */}
+      {activeTab === "details" && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Main Customer Information */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Basic Information */}
+            <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <Phone className="w-5 h-5" />
               Basic Information
@@ -158,55 +198,60 @@ const CustomerDetail = () => {
               <Wifi className="w-5 h-5" />
               Subscription Information
             </h2>
-            {currentCustomer.subscription ? (
+            {currentCustomer.Subscriptions && currentCustomer.Subscriptions.length > 0 ? (
               <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">Plan</label>
-                    <p className="text-gray-900">{currentCustomer.subscription.plan?.name || "N/A"}</p>
+                {currentCustomer.Subscriptions.map((subscription, index) => (
+                  <div key={subscription.id} className="space-y-4">
+                    {index > 0 && <hr className="border-gray-200" />}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">Plan</label>
+                        <p className="text-gray-900">{subscription.Plan?.name || "N/A"}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">Monthly Price</label>
+                        <p className="text-gray-900">₹{subscription.agreedMonthlyPrice}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">Billing Type</label>
+                        <p className="text-gray-900">{subscription.billingType}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">Billing Cycle</label>
+                        <p className="text-gray-900">
+                          {subscription.billingCycle} ({subscription.billingCycleValue})
+                        </p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">Status</label>
+                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                          subscription.status === "ACTIVE" 
+                            ? "bg-green-100 text-green-800"
+                            : subscription.status === "PAUSED"
+                            ? "bg-yellow-100 text-yellow-800"
+                            : "bg-red-100 text-red-800"
+                        }`}>
+                          {subscription.status}
+                        </span>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">Start Date</label>
+                        <p className="text-gray-900">
+                          {subscription.startDate 
+                            ? new Date(subscription.startDate).toLocaleDateString()
+                            : "N/A"
+                          }
+                        </p>
+                      </div>
+                    </div>
+                    {subscription.Plan?.benefits && (
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">Plan Benefits</label>
+                        <p className="text-gray-900">{subscription.Plan.benefits}</p>
+                      </div>
+                    )}
                   </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">Monthly Price</label>
-                    <p className="text-gray-900">₹{currentCustomer.subscription.agreedMonthlyPrice}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">Billing Type</label>
-                    <p className="text-gray-900">{currentCustomer.subscription.billingType}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">Billing Cycle</label>
-                    <p className="text-gray-900">
-                      {currentCustomer.subscription.billingCycle} ({currentCustomer.subscription.billingCycleValue})
-                    </p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">Status</label>
-                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                      currentCustomer.subscription.status === "ACTIVE" 
-                        ? "bg-green-100 text-green-800"
-                        : currentCustomer.subscription.status === "PAUSED"
-                        ? "bg-yellow-100 text-yellow-800"
-                        : "bg-red-100 text-red-800"
-                    }`}>
-                      {currentCustomer.subscription.status}
-                    </span>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">Start Date</label>
-                    <p className="text-gray-900">
-                      {currentCustomer.subscription.startDate 
-                        ? new Date(currentCustomer.subscription.startDate).toLocaleDateString()
-                        : "N/A"
-                      }
-                    </p>
-                  </div>
-                </div>
-                {currentCustomer.subscription.plan?.benefits && (
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">Plan Benefits</label>
-                    <p className="text-gray-900">{currentCustomer.subscription.plan.benefits}</p>
-                  </div>
-                )}
+                ))}
               </div>
             ) : (
               <p className="text-gray-500">No subscription found</p>
@@ -219,20 +264,27 @@ const CustomerDetail = () => {
               <HardDrive className="w-5 h-5" />
               Hardware Information
             </h2>
-            {currentCustomer.hardware ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium text-gray-500">Device Type</label>
-                  <p className="text-gray-900">{currentCustomer.hardware.deviceType}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-500">MAC Address</label>
-                  <p className="text-gray-900 font-mono">{currentCustomer.hardware.macAddress}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-500">IP Address</label>
-                  <p className="text-gray-900 font-mono">{currentCustomer.hardware.ipAddress}</p>
-                </div>
+            {currentCustomer.CustomerHardwares && currentCustomer.CustomerHardwares.length > 0 ? (
+              <div className="space-y-4">
+                {currentCustomer.CustomerHardwares.map((hardware, index) => (
+                  <div key={hardware.id} className="space-y-4">
+                    {index > 0 && <hr className="border-gray-200" />}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">Device Type</label>
+                        <p className="text-gray-900">{hardware.deviceType || "N/A"}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">MAC Address</label>
+                        <p className="text-gray-900 font-mono">{hardware.macAddress || "N/A"}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">IP Address</label>
+                        <p className="text-gray-900 font-mono">{hardware.ipAddress || "N/A"}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : (
               <p className="text-gray-500">No hardware information found</p>
@@ -329,6 +381,39 @@ const CustomerDetail = () => {
           </div>
         </div>
       </div>
+      )}
+
+      {/* Balance History Tab */}
+      {activeTab === "history" && (
+        <div className="space-y-6">
+          {/* Add Pending Charge Button */}
+          <div className="flex justify-end">
+            <button
+              onClick={() => setShowAddPendingCharge(true)}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              Add Pending Charge
+            </button>
+          </div>
+
+          {/* Balance History Component */}
+          <BalanceHistory customerId={id} />
+        </div>
+      )}
+
+      {/* Add Pending Charge Modal */}
+      {showAddPendingCharge && (
+        <AddPendingCharge
+          customerId={id}
+          onSuccess={(newCharge) => {
+            setShowAddPendingCharge(false);
+            // Refresh the balance history
+            // You might want to add a refresh function to the BalanceHistory component
+          }}
+          onCancel={() => setShowAddPendingCharge(false)}
+        />
+      )}
     </Layout>
   );
 };

@@ -34,16 +34,6 @@ export const getPlanById = async (id) => {
 
 export const createPlan = async (data) => {
   try {
-    // Get user's company ID for automatic assignment
-    const { getCompanyId, getRoleCode } = useUserStore.getState();
-    const companyId = getCompanyId();
-    const roleCode = getRoleCode();
-
-    // Add company ID for non-super admin users
-    if (roleCode !== "SUPER_ADMIN" && companyId) {
-      data.companyId = companyId;
-    }
-
     const response = await axiosInstance.post(URLS.PLANS, data);
     return response.data;
   } catch (error) {
