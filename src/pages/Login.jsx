@@ -182,7 +182,7 @@ const Login = () => {
         <div className="mt-6 p-4 bg-gray-50 rounded-lg">
           <h3 className="text-sm font-medium text-gray-700 mb-2">Demo Credentials:</h3>
           <div className="text-xs text-gray-600 space-y-1">
-            <div><strong>Admin:</strong> 1111111111 / adminpass123</div>
+            <div><strong>Admin:</strong> 9876543210 / adminpass123</div>
           </div>
         </div>
       </div>
