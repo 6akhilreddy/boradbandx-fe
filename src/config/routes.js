@@ -20,6 +20,7 @@ const routes = {
   INVOICE_HISTORY: "/reports/invoices",
   PAYMENT_HISTORY: "/reports/payments",
   USER_HISTORY: "/reports/user",
+  COMPLAINTS: "/complaints",
 };
 
 export default routes;

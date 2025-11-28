@@ -1,11 +1,11 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import Layout from "../components/Layout";
 import useApiLoading from "../hooks/useApiLoading";
 import useCustomerStore from "../store/customerStore";
 import Spinner from "../components/Spinner";
 import Alert from "../components/Alert";
-import pendingChargeApi from "../api/pendingChargeApi";
+import { addOnBill } from "../api/customerApi";
 import {
   Search,
   Plus,
@@ -21,6 +21,7 @@ import {
 
 const Customers = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const {
     customers,
     loading,
@@ -36,6 +37,12 @@ const Customers = () => {
   const [search, setSearch] = useState("");
   const [areaFilter, setAreaFilter] = useState("");
   const [paymentStatusFilter, setPaymentStatusFilter] = useState("");
+  const [renewalStatusFilter, setRenewalStatusFilter] = useState(
+    searchParams.get("renewalStatus") || ""
+  );
+  const [followUpStatusFilter, setFollowUpStatusFilter] = useState(
+    searchParams.get("followUpStatus") || ""
+  );
 
   // pagination
   const [pageSize, setPageSize] = useState(10);
@@ -53,9 +60,15 @@ const Customers = () => {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [alert, setAlert] = useState({ show: false, type: "success", message: "" });
   const [buttonLoading, setButtonLoading] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
-  // Combined fetch with debouncing
+  // Combined fetch with debouncing (skip debounce on initial load)
   useEffect(() => {
+    // On initial load, fetch immediately without debounce
+    // For subsequent filter changes, debounce to avoid excessive API calls
+    const shouldDebounce = !isInitialLoad && (search || areaFilter || paymentStatusFilter || renewalStatusFilter || followUpStatusFilter);
+    const delay = shouldDebounce ? 350 : 0;
+    
     const t = setTimeout(() => {
       fetchCustomers({
         page: pageIndex,
@@ -63,11 +76,17 @@ const Customers = () => {
         ...(search && { search }),
         ...(areaFilter && { areaId: areaFilter }),
         ...(paymentStatusFilter && { paymentStatus: paymentStatusFilter }),
+        ...(renewalStatusFilter && { renewalStatus: renewalStatusFilter }),
+        ...(followUpStatusFilter && { followUpStatus: followUpStatusFilter }),
       });
-    }, 350);
+      if (isInitialLoad) {
+        setIsInitialLoad(false);
+      }
+    }, delay);
+    
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, areaFilter, paymentStatusFilter, pageSize, pageIndex, refreshTrigger]);
+  }, [search, areaFilter, paymentStatusFilter, renewalStatusFilter, followUpStatusFilter, pageSize, pageIndex, refreshTrigger]);
 
   const handlePageChange = useCallback((next) => {
     if (!pagination) return;
@@ -80,14 +99,6 @@ const Customers = () => {
     setPageSize(n);
     setPageIndex(1);
   }, []);
-
-
-
-  const getBalanceStatus = (balance) => {
-    if (balance === 0) return { text: "Paid", class: "bg-emerald-100 text-emerald-700" };
-    if (balance > 0) return { text: "Unpaid", class: "bg-red-100 text-red-700" };
-    return { text: "Credit", class: "bg-blue-100 text-blue-700" };
-  };
 
   const handleAddBill = (customer) => {
     setSelectedCustomer(customer);
@@ -107,11 +118,10 @@ const Customers = () => {
 
     setButtonLoading(true);
     try {
-      await pendingChargeApi.createPendingCharge({
-        customerId: selectedCustomer.id,
-        chargeType: billForm.chargeType,
+      await addOnBill(selectedCustomer.id, {
+        itemName: billForm.description,
+        price: parseFloat(billForm.amount),
         description: billForm.description,
-        amount: parseFloat(billForm.amount)
       });
 
       setShowAddBillModal(false);
@@ -123,7 +133,7 @@ const Customers = () => {
       });
 
       // Show success message
-      setAlert({ show: true, type: "success", message: "Bill added successfully!" });
+      setAlert({ show: true, type: "success", message: "Add-on bill created successfully!" });
 
       // Refresh customers list
       setRefreshTrigger(prev => prev + 1);
@@ -203,12 +213,56 @@ const Customers = () => {
             <option value="unpaid">Unpaid</option>
           </select>
 
+          {/* Renewal Status */}
+          <select
+            value={renewalStatusFilter}
+            onChange={(e) => {
+              setRenewalStatusFilter(e.target.value);
+              // Update URL params
+              if (e.target.value) {
+                setSearchParams({ renewalStatus: e.target.value });
+              } else {
+                setSearchParams({});
+              }
+            }}
+            className="w-48 px-4 py-2 rounded-lg bg-gray-100 border border-transparent
+                       focus:outline-none focus:ring-2 focus:ring-emerald-400 pr-8"
+          >
+            <option value="">All Renewals</option>
+            <option value="today">Today's Renewals</option>
+            <option value="thisMonth">This Month Renewals</option>
+            <option value="upcoming">Upcoming Renewals</option>
+            <option value="expired">Expired Renewals</option>
+          </select>
+
+          {/* Follow Up Status */}
+          <select
+            value={followUpStatusFilter}
+            onChange={(e) => {
+              setFollowUpStatusFilter(e.target.value);
+              // Update URL params
+              if (e.target.value) {
+                setSearchParams({ followUpStatus: e.target.value });
+              } else {
+                setSearchParams({});
+              }
+            }}
+            className="w-48 px-4 py-2 rounded-lg bg-gray-100 border border-transparent
+                       focus:outline-none focus:ring-2 focus:ring-emerald-400 pr-8"
+          >
+            <option value="">All Follow Ups</option>
+            <option value="today">Today's Follow Ups</option>
+          </select>
+
           {/* Clear */}
           <button
             onClick={() => {
               setSearch("");
               setAreaFilter("");
               setPaymentStatusFilter("");
+              setRenewalStatusFilter("");
+              setFollowUpStatusFilter("");
+              setSearchParams({});
               handlePageSizeChange(10);
             }}
             className="px-3 py-2 rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200 text-sm"
@@ -242,12 +296,15 @@ const Customers = () => {
             </button>
 
             {/* Clear Button with X Icon */}
-            {(search || areaFilter || paymentStatusFilter) && (
+            {(search || areaFilter || paymentStatusFilter || renewalStatusFilter || followUpStatusFilter) && (
               <button
                 onClick={() => {
                   setSearch("");
                   setAreaFilter("");
                   setPaymentStatusFilter("");
+                  setRenewalStatusFilter("");
+                  setFollowUpStatusFilter("");
+                  setSearchParams({});
                   handlePageSizeChange(10);
                 }}
                 className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
@@ -292,6 +349,53 @@ const Customers = () => {
                   <option value="unpaid">Unpaid</option>
                 </select>
               </div>
+
+              {/* Renewal Status Filter */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Renewal Status</label>
+                <select
+                  value={renewalStatusFilter}
+                  onChange={(e) => {
+                    setRenewalStatusFilter(e.target.value);
+                    // Update URL params
+                    if (e.target.value) {
+                      setSearchParams({ renewalStatus: e.target.value });
+                    } else {
+                      setSearchParams({});
+                    }
+                  }}
+                  className="w-full px-3 py-2 rounded-lg bg-white border border-gray-200
+                             focus:outline-none focus:ring-2 focus:ring-emerald-400 pr-8"
+                >
+                  <option value="">All Renewals</option>
+                  <option value="today">Today's Renewals</option>
+                  <option value="thisMonth">This Month Renewals</option>
+                  <option value="upcoming">Upcoming Renewals</option>
+                  <option value="expired">Expired Renewals</option>
+                </select>
+              </div>
+
+              {/* Follow Up Status Filter */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Follow Up Status</label>
+                <select
+                  value={followUpStatusFilter}
+                  onChange={(e) => {
+                    setFollowUpStatusFilter(e.target.value);
+                    // Update URL params
+                    if (e.target.value) {
+                      setSearchParams({ followUpStatus: e.target.value });
+                    } else {
+                      setSearchParams({});
+                    }
+                  }}
+                  className="w-full px-3 py-2 rounded-lg bg-white border border-gray-200
+                             focus:outline-none focus:ring-2 focus:ring-emerald-400 pr-8"
+                >
+                  <option value="">All Follow Ups</option>
+                  <option value="today">Today's Follow Ups</option>
+                </select>
+              </div>
             </div>
           )}
         </div>
@@ -317,147 +421,134 @@ const Customers = () => {
       )}
 
       {/* Data */}
-      {(loading || apiLoading) ? (
+      {(loading || apiLoading || (isInitialLoad && customers.length === 0)) ? (
         <Spinner loadingTxt="Loading customers..." size="large" />
       ) : (
         <>
           {/* Desktop Table Layout */}
           <div className="hidden lg:block">
-            {/* Desktop Header Row */}
-            <div className="bg-white rounded-xl shadow-sm overflow-hidden mb-3">
-              <div className="overflow-x-auto max-w-full">
-                <div className="grid grid-cols-8 gap-4 px-6 py-4 bg-gray-50 w-full min-w-[1200px]">
-                  <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider w-24">S.CODE</div>
-                  <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider">CUSTOMER</div>
-                  <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider w-20">BALANCE</div>
-                  <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider w-24">AREA</div>
-                  <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider w-32">PLAN</div>
-                  <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider w-24">DUE DATE</div>
-                  <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider w-20">STATUS</div>
-                  <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider w-24 text-right">ACTION</div>
-                </div>
+            <div className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-200">
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-200">
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200">
+                        S.CODE
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200">
+                        Name
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200">
+                        Balance
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200">
+                        Area
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200">
+                        Last Bill Amount
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200">
+                        Expired
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200">
+                        Status
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Action
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {customers.length === 0 ? (
+                      <tr>
+                        <td colSpan="8" className="px-4 py-6 text-center text-gray-500">
+                          No customers found
+                        </td>
+                      </tr>
+                    ) : (
+                      customers.map((c) => {
+                        const isExpired = c.nextRenewalDate 
+                          ? new Date(c.nextRenewalDate).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0)
+                          : false;
+                        const statusClass = c.isActive 
+                          ? "bg-green-100 text-green-700" 
+                          : "bg-red-100 text-red-700";
+                        const statusText = c.isActive ? "Active" : "Inactive";
+                        
+                        return (
+                          <tr 
+                            key={c.id}
+                            className="border-b border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer"
+                            onClick={() => navigate(`/customers/${c.id}`)}
+                          >
+                            {/* S.CODE */}
+                            <td className="px-4 py-3 border-r border-gray-200">
+                              <div className="font-medium text-gray-900">{c.customerCode || "-"}</div>
+                            </td>
+
+                            {/* Name - Name, mobile, Address */}
+                            <td className="px-4 py-3 border-r border-gray-200">
+                              <div className="min-w-0">
+                                <div className="text-sm font-semibold text-gray-900">{c.fullName || "-"}</div>
+                                <div className="text-xs text-gray-500">{c.phone || "-"}</div>
+                                <div className="text-xs text-gray-500 truncate max-w-xs">{c.address || "-"}</div>
+                              </div>
+                            </td>
+
+                            {/* Balance */}
+                            <td className="px-4 py-3 border-r border-gray-200">
+                              <div className="font-medium text-gray-900">₹{c.balance || 0}</div>
+                            </td>
+
+                            {/* Area */}
+                            <td className="px-4 py-3 border-r border-gray-200">
+                              <div className="text-sm text-gray-700">{c.areaName || "-"}</div>
+                            </td>
+
+                            {/* Last Bill Amount */}
+                            <td className="px-4 py-3 border-r border-gray-200">
+                              <div className="text-sm text-gray-900">₹{c.lastBillAmount || 0}</div>
+                            </td>
+
+                            {/* Expired - Next Renewal Date */}
+                            <td className="px-4 py-3 border-r border-gray-200">
+                              <div className={`text-sm ${isExpired ? "text-red-600 font-semibold" : "text-gray-700"}`}>
+                                {c.nextRenewalDate 
+                                  ? new Date(c.nextRenewalDate).toLocaleDateString() 
+                                  : "-"}
+                              </div>
+                            </td>
+
+                            {/* Status - Active/Inactive */}
+                            <td className="px-4 py-3 border-r border-gray-200">
+                              <span className={`px-2 py-1 text-xs font-semibold rounded-full ${statusClass}`}>
+                                {statusText}
+                              </span>
+                            </td>
+
+                            {/* Action - Details button */}
+                            <td className="px-4 py-3">
+                              <button
+                                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md transition-all cursor-pointer
+                                           hover:shadow-sm text-white bg-blue-600 hover:bg-blue-700
+                                           border border-blue-600 hover:border-blue-700"
+                                title="View Details"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/customers/${c.id}`);
+                                }}
+                              >
+                                <Eye className="w-4 h-4" />
+                                <span className="text-sm font-medium">Details</span>
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
               </div>
-            </div>
-
-            {/* Desktop Data Rows */}
-            <div className="space-y-3 w-full">
-              {customers.length === 0 ? (
-                <div className="bg-white rounded-xl shadow-sm p-6 text-center text-gray-500">
-                  No customers found
-                </div>
-              ) : (
-                customers.map((c) => {
-                  const badge = getBalanceStatus(c.balance);
-                  const price = c.agreedMonthlyPrice ?? c.monthlyPrice;
-                  return (
-                    <div
-                      key={c.id}
-                      className="bg-white rounded-xl shadow-sm p-4 border border-gray-100 hover:shadow-md transition-shadow duration-200"
-                    >
-                      <div className="grid grid-cols-8 gap-4 items-center w-full min-w-[1200px]">
-                        {/* S.CODE */}
-                        <div className="col-span-1 flex items-center min-w-0 w-24">
-                          <div className="font-medium text-gray-900 truncate w-full">{c.customerCode}</div>
-                        </div>
-
-                        {/* CUSTOMER */}
-                        <div className="col-span-1 flex items-center min-w-0">
-                          <div className="min-w-0 w-full">
-                            <div className="text-sm font-semibold text-gray-900 truncate">{c.fullName}</div>
-                            <div className="text-xs text-gray-500 truncate">{c.phone}</div>
-                          </div>
-                        </div>
-
-                        {/* BALANCE */}
-                        <div className="col-span-1 flex items-center min-w-0 w-20">
-                          <div className="font-medium text-gray-900 truncate w-full">₹{c.balance || 0}</div>
-                        </div>
-
-                        {/* AREA */}
-                        <div className="col-span-1 flex items-center min-w-0 w-24">
-                          <div className="text-sm text-gray-700 truncate w-full">{c.areaName || ""}</div>
-                        </div>
-
-                        {/* PLAN */}
-                        <div className="col-span-1 flex items-center min-w-0 w-32">
-                          <div className="text-sm min-w-0 w-full">
-                            <div className="font-semibold text-gray-900 truncate">{c.planName || ""}</div>
-                            {price ? <div className="text-gray-500 truncate">₹{price}/month</div> : null}
-                          </div>
-                        </div>
-
-                        {/* DUE DATE */}
-                        <div className="col-span-1 flex items-center min-w-0 w-24">
-                          <div className="text-sm text-gray-700 truncate w-full">
-                            {c.dueDate ? new Date(c.dueDate).toLocaleDateString() : ""}
-                          </div>
-                        </div>
-
-                        {/* STATUS */}
-                        <div className="col-span-1 flex items-center min-w-0 w-20">
-                          <span className={`px-3 py-1 text-xs font-semibold rounded-full ${badge.class} truncate w-full text-center`}>
-                            {badge.text}
-                          </span>
-                        </div>
-
-                        {/* ACTION */}
-                        <div className="col-span-1 flex items-center justify-center min-w-0 w-24">
-                          <div className="flex gap-2">
-                            <button
-                              className="inline-flex items-center justify-center w-10 h-10 rounded-md transition-all cursor-pointer
-                                         hover:shadow-sm text-gray-600 hover:text-blue-600 bg-gray-50 hover:bg-blue-50
-                                         group relative border border-gray-200"
-                              title="View Details"
-                              onClick={() => navigate(`/customers/${c.id}`)}
-                            >
-                              <Eye className="w-5 h-5" />
-                              <span className="hidden md:block absolute -bottom-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-10">
-                                View Details
-                              </span>
-                            </button>
-                            <button
-                              className="inline-flex items-center justify-center w-10 h-10 rounded-md transition-all cursor-pointer
-                                         hover:shadow-sm text-gray-600 hover:text-green-600 bg-gray-50 hover:bg-green-50
-                                         group relative border border-gray-200"
-                              title="Add to Bill"
-                              onClick={() => handleAddBill(c)}
-                            >
-                              <Receipt className="w-5 h-5" />
-                              <span className="hidden md:block absolute -bottom-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-10">
-                                Add to Bill
-                              </span>
-                            </button>
-                            <button
-                              className="inline-flex items-center justify-center w-10 h-10 rounded-md transition-all cursor-pointer
-                                         hover:shadow-sm text-gray-600 hover:text-purple-600 bg-gray-50 hover:bg-purple-50
-                                         group relative border border-gray-200"
-                              title="View History"
-                              onClick={() => handleViewHistory(c)}
-                            >
-                              <FileText className="w-5 h-5" />
-                              <span className="hidden md:block absolute -bottom-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-10">
-                                View History
-                              </span>
-                            </button>
-                            <button
-                              className="inline-flex items-center justify-center w-10 h-10 rounded-md transition-all cursor-pointer
-                                         hover:shadow-sm text-gray-600 hover:text-blue-600 bg-gray-50 hover:bg-blue-50
-                                         group relative border border-gray-200"
-                              title="Collection"
-                              onClick={() => navigate(`/payments?customerId=${c.id}`)}
-                            >
-                              <Wallet className="w-5 h-5" />
-                              <span className="hidden md:block absolute -bottom-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-10">
-                                Collection
-                              </span>
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
             </div>
           </div>
 
@@ -470,8 +561,14 @@ const Customers = () => {
             ) : (
               <div className="space-y-4">
                 {customers.map((c) => {
-                  const badge = getBalanceStatus(c.balance);
-                  const price = c.agreedMonthlyPrice ?? c.monthlyPrice;
+                  const isExpired = c.nextRenewalDate 
+                    ? new Date(c.nextRenewalDate).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0)
+                    : false;
+                  const statusClass = c.isActive 
+                    ? "bg-green-100 text-green-700" 
+                    : "bg-red-100 text-red-700";
+                  const statusText = c.isActive ? "Active" : "Inactive";
+                  
                   return (
                     <div
                       key={c.id}
@@ -480,21 +577,22 @@ const Customers = () => {
                       {/* Top Section - Customer Code and Status */}
                       <div className="flex items-center justify-between mb-4">
                         <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                          {c.customerCode}
+                          {c.customerCode || "-"}
                         </div>
-                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${badge.class}`}>
-                          {badge.text}
+                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${statusClass}`}>
+                          {statusText}
                         </span>
                       </div>
 
-                                            {/* Two Column Layout for Data */}
+                      {/* Two Column Layout for Data */}
                       <div className="grid grid-cols-2 gap-6 mb-4">
                         {/* Left Column */}
                         <div className="space-y-4">
-                          {/* Customer Name and Phone */}
+                          {/* Customer Name, Phone, and Address */}
                           <div>
-                            <div className="text-sm font-semibold text-gray-900 mb-1">{c.fullName}</div>
-                            <div className="text-xs text-gray-500">{c.phone}</div>
+                            <div className="text-sm font-semibold text-gray-900 mb-1">{c.fullName || "-"}</div>
+                            <div className="text-xs text-gray-500">{c.phone || "-"}</div>
+                            <div className="text-xs text-gray-500 mt-1">{c.address || "-"}</div>
                           </div>
 
                           {/* Balance */}
@@ -506,58 +604,38 @@ const Customers = () => {
                           {/* Area */}
                           <div>
                             <div className="text-xs text-gray-500 mb-1">Area</div>
-                            <div className="text-sm text-gray-900">{c.areaName || ""}</div>
+                            <div className="text-sm text-gray-900">{c.areaName || "-"}</div>
                           </div>
                         </div>
 
                         {/* Right Column */}
                         <div className="space-y-4">
-                          {/* Plan */}
+                          {/* Last Bill Amount */}
                           <div>
-                            <div className="text-xs text-gray-500 mb-1">Plan</div>
-                            <div className="text-sm font-medium text-gray-900">{c.planName || ""}</div>
-                            {price && <div className="text-xs text-gray-500">₹{price}/month</div>}
+                            <div className="text-xs text-gray-500 mb-1">Last Bill Amount</div>
+                            <div className="text-sm font-medium text-gray-900">₹{c.lastBillAmount || 0}</div>
                           </div>
 
-                          {/* Due Date */}
+                          {/* Expired - Next Renewal Date */}
                           <div>
-                            <div className="text-xs text-gray-500 mb-1">Due Date</div>
-                            <div className="text-sm text-gray-900">
-                              {c.dueDate ? new Date(c.dueDate).toLocaleDateString() : ""}
+                            <div className="text-xs text-gray-500 mb-1">Expired</div>
+                            <div className={`text-sm font-medium ${isExpired ? "text-red-600" : "text-gray-900"}`}>
+                              {c.nextRenewalDate 
+                                ? new Date(c.nextRenewalDate).toLocaleDateString() 
+                                : "-"}
                             </div>
                           </div>
                         </div>
                       </div>
 
-                      {/* Action Buttons */}
-                      <div className="grid grid-cols-2 gap-2 pt-4 border-t border-gray-100">
+                      {/* Action Button */}
+                      <div className="pt-4 border-t border-gray-100">
                         <button
-                          className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors text-sm font-medium"
+                          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors text-sm font-medium"
                           onClick={() => navigate(`/customers/${c.id}`)}
                         >
                           <Eye className="w-4 h-4" />
-                          View
-                        </button>
-                        <button
-                          className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 transition-colors text-sm font-medium"
-                          onClick={() => handleAddBill(c)}
-                        >
-                          <Receipt className="w-4 h-4" />
-                          Add Bill
-                        </button>
-                        <button
-                          className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-purple-50 text-purple-600 hover:bg-purple-100 transition-colors text-sm font-medium"
-                          onClick={() => handleViewHistory(c)}
-                        >
-                          <FileText className="w-4 h-4" />
-                          History
-                        </button>
-                        <button
-                          className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-orange-50 text-orange-600 hover:bg-orange-100 transition-colors text-sm font-medium"
-                          onClick={() => navigate(`/payments?customerId=${c.id}`)}
-                        >
-                          <Wallet className="w-4 h-4" />
-                          Collection
+                          Details
                         </button>
                       </div>
                     </div>

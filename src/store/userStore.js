@@ -8,8 +8,6 @@ const useUserStore = create()(
       token: null,
 
       setUser: (userData, token) => {
-        console.log("Setting user data:", userData);
-        console.log("Setting token:", token);
         set({
           user: {
             ...userData,
@@ -18,27 +16,21 @@ const useUserStore = create()(
             roleCode: userData.roleCode || userData.Role?.code,
             allowedFeatures: userData.allowedFeatures || [],
             companyId: userData.companyId,
+            // Store impersonation info if present
+            impersonatedBy: userData.impersonatedBy || null,
           },
           token,
         });
-        console.log("User store updated:", get());
       },
 
       clearUser: () => {
-        console.log("Clearing user data");
         set({ user: null, token: null });
       },
 
       // Authentication state - changed from getter to function
       isAuthenticated: () => {
         const { user, token } = get();
-        const authenticated = !!(user && token);
-        console.log("Checking authentication:", {
-          user: !!user,
-          token: !!token,
-          authenticated,
-        });
-        return authenticated;
+        return !!(user && token);
       },
 
       // Helper methods for role checking
@@ -72,8 +64,22 @@ const useUserStore = create()(
 
       // Logout function
       logout: () => {
-        console.log("Logging out user");
         set({ user: null, token: null });
+      },
+
+      // Check if currently impersonating
+      isImpersonating: () => {
+        const { user } = get();
+        return !!(user && user.impersonatedBy);
+      },
+
+      // Get original admin info when impersonating
+      getOriginalAdmin: () => {
+        const { user } = get();
+        if (user && user.impersonatedBy) {
+          return user.impersonatedBy;
+        }
+        return null;
       },
     }),
     {

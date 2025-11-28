@@ -6,6 +6,9 @@ import useAgentStore from "../store/agentStore";
 import Spinner from "../components/Spinner";
 import useApiLoading from "../hooks/useApiLoading";
 import Alert from "../components/Alert";
+import { loginAsAgent } from "../api/authApi";
+import useUserStore from "../store/userStore";
+import routes from "../config/routes";
 import {
   Search,
   Plus,
@@ -13,6 +16,7 @@ import {
   Edit,
   Filter,
   X,
+  LogIn,
 } from "lucide-react";
 
 const Agents = () => {
@@ -37,6 +41,8 @@ const Agents = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingAgent, setEditingAgent] = useState(null);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [selectedAgentForLogin, setSelectedAgentForLogin] = useState(null);
   const [alert, setAlert] = useState({ show: false, type: "success", message: "" });
   const [buttonLoading, setButtonLoading] = useState(false);
 
@@ -106,6 +112,48 @@ const Agents = () => {
     setEditValue("phone", agent.phone || "");
     setEditValue("status", agent.isActive ? "ACTIVE" : "INACTIVE");
     setShowEditModal(true);
+  };
+
+  const openLoginModal = (agent) => {
+    setSelectedAgentForLogin(agent);
+    setShowLoginModal(true);
+  };
+
+  const handleLoginAsAgent = async () => {
+    if (!selectedAgentForLogin) return;
+    
+    setButtonLoading(true);
+    try {
+      const response = await loginAsAgent(selectedAgentForLogin.id);
+      
+      if (!response || !response.user || !response.token) {
+        throw new Error("Invalid response from server");
+      }
+      
+      // Set in Zustand store (this will automatically persist to localStorage)
+      const { setUser } = useUserStore.getState();
+      setUser(response.user, response.token);
+      
+      // Wait a moment for Zustand persist to write to localStorage
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Close modal
+      setShowLoginModal(false);
+      setSelectedAgentForLogin(null);
+      
+      // Navigate to agent dashboard
+      setTimeout(() => {
+        navigate(routes.AGENT_DASHBOARD, { replace: true });
+      }, 50);
+    } catch (error) {
+      console.error("Failed to login as agent:", error);
+      setAlert({ 
+        show: true, 
+        type: "error", 
+        message: error.response?.data?.message || error.message || "Failed to login as agent. Please try again." 
+      });
+      setButtonLoading(false);
+    }
   };
 
   const getStatusBadge = (status) => {
@@ -259,102 +307,120 @@ const Agents = () => {
         <>
           {/* Desktop Table Layout */}
           <div className="hidden lg:block">
-            {/* Desktop Header Row */}
-            <div className="bg-white rounded-xl shadow-sm overflow-hidden mb-3">
-              <div className="overflow-x-auto max-w-full">
-                <div className="grid grid-cols-7 gap-4 px-6 py-4 bg-gray-50 w-full">
-                  <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider">NAME</div>
-                  <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider">PHONE</div>
-                  <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider">TOTAL COLLECTION</div>
-                  <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider">LAST MONTH</div>
-                  <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider">TODAY</div>
-                  <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider">STATUS</div>
-                  <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider text-right">ACTION</div>
-                </div>
+            <div className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-200">
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-200">
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200">
+                        NAME
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200">
+                        PHONE
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200">
+                        TOTAL COLLECTION
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200">
+                        LAST MONTH
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200">
+                        TODAY
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200">
+                        STATUS
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        ACTION
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {agents.length === 0 ? (
+                      <tr>
+                        <td colSpan="7" className="px-4 py-6 text-center text-gray-500">
+                          No agents found
+                        </td>
+                      </tr>
+                    ) : (
+                      agents.map((agent) => {
+                        const badge = getStatusBadge(agent.status);
+                        return (
+                          <tr 
+                            key={agent.id}
+                            className="border-b border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer"
+                            onClick={() => navigate(`/agents/${agent.id}`)}
+                          >
+                            {/* NAME */}
+                            <td className="px-4 py-3 border-r border-gray-200">
+                              <div className="text-sm font-semibold text-gray-900">{agent.name}</div>
+                            </td>
+
+                            {/* PHONE */}
+                            <td className="px-4 py-3 border-r border-gray-200">
+                              <div className="text-sm text-gray-700">{agent.phone || "-"}</div>
+                            </td>
+
+                            {/* TOTAL COLLECTION */}
+                            <td className="px-4 py-3 border-r border-gray-200">
+                              <div className="font-medium text-gray-900">₹{Math.round(agent.collection?.total || 0)}</div>
+                            </td>
+
+                            {/* LAST MONTH */}
+                            <td className="px-4 py-3 border-r border-gray-200">
+                              <div className="text-sm text-gray-700">₹{Math.round(agent.collection?.lastMonth || 0)}</div>
+                            </td>
+
+                            {/* TODAY */}
+                            <td className="px-4 py-3 border-r border-gray-200">
+                              <div className="text-sm text-gray-700">₹{Math.round(agent.collection?.today || 0)}</div>
+                            </td>
+
+                            {/* STATUS */}
+                            <td className="px-4 py-3 border-r border-gray-200">
+                              <span className={`px-2 py-1 text-xs font-semibold rounded-full ${badge.class}`}>
+                                {badge.text}
+                              </span>
+                            </td>
+
+                            {/* ACTION */}
+                            <td className="px-4 py-3">
+                              <div className="flex gap-2">
+                                <button
+                                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md transition-all cursor-pointer
+                                             hover:shadow-sm text-white bg-blue-600 hover:bg-blue-700
+                                             border border-blue-600 hover:border-blue-700"
+                                  title="View Details"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigate(`/agents/${agent.id}`);
+                                  }}
+                                >
+                                  <Eye className="w-4 h-4" />
+                                  <span className="text-sm font-medium">Details</span>
+                                </button>
+                                <button
+                                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md transition-all cursor-pointer
+                                             hover:shadow-sm text-white bg-green-600 hover:bg-green-700
+                                             border border-green-600 hover:border-green-700"
+                                  title="Login as Agent"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openLoginModal(agent);
+                                  }}
+                                >
+                                  <LogIn className="w-4 h-4" />
+                                  <span className="text-sm font-medium">Login</span>
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
               </div>
-            </div>
-
-            {/* Desktop Data Rows */}
-            <div className="space-y-3 w-full">
-              {agents.length === 0 ? (
-                <div className="bg-white rounded-xl shadow-sm p-6 text-center text-gray-500">
-                  No agents found
-                </div>
-              ) : (
-                agents.map((agent) => {
-                  const badge = getStatusBadge(agent.status);
-                  return (
-                    <div
-                      key={agent.id}
-                      className="bg-white rounded-xl shadow-sm p-4 border border-gray-100 hover:shadow-md transition-shadow duration-200"
-                    >
-                      <div className="grid grid-cols-7 gap-4 items-center w-full">
-                        {/* NAME */}
-                        <div className="col-span-1 flex items-center min-w-0">
-                          <div className="text-sm font-semibold text-gray-900 truncate">{agent.name}</div>
-                        </div>
-
-                        {/* PHONE */}
-                        <div className="col-span-1 flex items-center min-w-0">
-                          <div className="text-sm text-gray-700 truncate">{agent.phone}</div>
-                        </div>
-
-                        {/* TOTAL COLLECTION */}
-                        <div className="col-span-1 flex items-center min-w-0">
-                          <div className="font-medium text-gray-900 truncate">₹{Math.round(agent.collection?.total || 0)}</div>
-                        </div>
-
-                        {/* LAST MONTH */}
-                        <div className="col-span-1 flex items-center min-w-0">
-                          <div className="text-sm text-gray-700 truncate">₹{agent.collection?.lastMonth || 0}</div>
-                        </div>
-
-                        {/* TODAY */}
-                        <div className="col-span-1 flex items-center min-w-0">
-                          <div className="text-sm text-gray-700 truncate">₹{agent.collection?.today || 0}</div>
-                        </div>
-
-                        {/* STATUS */}
-                        <div className="col-span-1 flex items-center min-w-0">
-                          <span className={`px-3 py-1 text-xs font-semibold rounded-full ${badge.class} truncate`}>
-                            {badge.text}
-                          </span>
-                        </div>
-
-                        {/* ACTION */}
-                        <div className="col-span-1 flex items-center justify-end">
-                          <div className="flex gap-2">
-                            <button
-                              className="inline-flex items-center justify-center w-10 h-10 rounded-md transition-all cursor-pointer
-                                         hover:shadow-sm text-gray-600 hover:text-blue-600 bg-gray-50 hover:bg-blue-50
-                                         group relative border border-gray-200"
-                              title="View Details"
-                              onClick={() => navigate(`/agents/${agent.id}`)}
-                            >
-                              <Eye className="w-5 h-5" />
-                              <span className="hidden md:block absolute -bottom-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-10">
-                                View Details
-                              </span>
-                            </button>
-                            <button
-                              className="inline-flex items-center justify-center w-10 h-10 rounded-md transition-all cursor-pointer
-                                         hover:shadow-sm text-gray-600 hover:text-green-600 bg-gray-50 hover:bg-green-50
-                                         group relative border border-gray-200"
-                              title="Edit Agent"
-                              onClick={() => openEditModal(agent)}
-                            >
-                              <Edit className="w-5 h-5" />
-                              <span className="hidden md:block absolute -bottom-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-10">
-                                Edit Agent
-                              </span>
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
             </div>
           </div>
 
@@ -421,14 +487,14 @@ const Agents = () => {
                           onClick={() => navigate(`/agents/${agent.id}`)}
                         >
                           <Eye className="w-3 h-3" />
-                          View
+                          Details
                         </button>
                         <button
                           className="flex-1 flex items-center justify-center gap-1 px-3 py-2 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 transition-colors text-xs font-medium"
-                          onClick={() => openEditModal(agent)}
+                          onClick={() => openLoginModal(agent)}
                         >
-                          <Edit className="w-3 h-3" />
-                          Edit
+                          <LogIn className="w-3 h-3" />
+                          Login
                         </button>
                       </div>
                     </div>
@@ -643,6 +709,62 @@ const Agents = () => {
                 )}
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Login Modal */}
+      {showLoginModal && selectedAgentForLogin && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+            <div className="p-6 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">Login as Agent</h3>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Agent Name</label>
+                <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900">
+                  {selectedAgentForLogin.name}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
+                <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900">
+                  {selectedAgentForLogin.phone || "Not provided"}
+                </div>
+              </div>
+              <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
+                <p className="text-sm text-blue-800">
+                  <strong>Note:</strong> You will be logged in as this agent. All actions will be recorded under the agent's account. You can return to your admin account using the "Back to Admin" button in the sidebar.
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 p-6 border-t border-gray-200">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowLoginModal(false);
+                  setSelectedAgentForLogin(null);
+                }}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 cursor-pointer"
+                disabled={buttonLoading}
+              >
+                Cancel
+              </button>
+              {buttonLoading ? (
+                <div className="px-4 py-2 flex items-center justify-center">
+                  <Spinner loadingTxt="Logging in..." size="small" />
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleLoginAsAgent}
+                  className="px-4 py-2 rounded-lg text-white shadow-md bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500 hover:from-purple-600 hover:to-cyan-600 transition-transform hover:scale-[1.02] cursor-pointer"
+                >
+                  Login as Agent
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

@@ -28,6 +28,7 @@ import Layout from '../components/Layout';
 import useUserStore from '../store/userStore';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import DatePicker from '../components/DatePicker';
 
 const Reports = () => {
   const [loading, setLoading] = useState(false);
@@ -569,20 +570,18 @@ const Reports = () => {
                       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                         <div className="flex flex-col gap-1 w-full sm:w-auto">
                           <label className="text-xs font-medium text-gray-700">Start Date</label>
-                          <input
-                            type="date"
+                          <DatePicker
                             value={invoiceFilters.dateRange.start}
                             onChange={(e) => handleDateRangeChange('start', e.target.value)}
-                            className="px-3 py-2 border border-gray-300 rounded-lg text-sm w-full sm:w-auto"
+                            className="text-sm w-full sm:w-auto"
                           />
                         </div>
                         <div className="flex flex-col gap-1 w-full sm:w-auto">
                           <label className="text-xs font-medium text-gray-700">End Date</label>
-                          <input
-                            type="date"
+                          <DatePicker
                             value={invoiceFilters.dateRange.end}
                             onChange={(e) => handleDateRangeChange('end', e.target.value)}
-                            className="px-3 py-2 border border-gray-300 rounded-lg text-sm w-full sm:w-auto"
+                            className="text-sm w-full sm:w-auto"
                           />
                         </div>
                       </div>
@@ -943,20 +942,18 @@ const Reports = () => {
                       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                         <div className="flex flex-col gap-1 w-full sm:w-auto">
                           <label className="text-xs font-medium text-gray-700">Start Date</label>
-                          <input
-                            type="date"
+                          <DatePicker
                             value={paymentFilters.dateRange.start}
                             onChange={(e) => handlePaymentDateRangeChange('start', e.target.value)}
-                            className="px-3 py-2 border border-gray-300 rounded-lg text-sm w-full sm:w-auto"
+                            className="text-sm w-full sm:w-auto"
                           />
                         </div>
                         <div className="flex flex-col gap-1 w-full sm:w-auto">
                           <label className="text-xs font-medium text-gray-700">End Date</label>
-                          <input
-                            type="date"
+                          <DatePicker
                             value={paymentFilters.dateRange.end}
                             onChange={(e) => handlePaymentDateRangeChange('end', e.target.value)}
-                            className="px-3 py-2 border border-gray-300 rounded-lg text-sm w-full sm:w-auto"
+                            className="text-sm w-full sm:w-auto"
                           />
                         </div>
                       </div>

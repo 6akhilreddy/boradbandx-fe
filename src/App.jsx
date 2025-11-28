@@ -7,9 +7,11 @@ import ProtectedRoute, {
   CustomerManageRoute,
   PlanManageRoute,
   AgentManageRoute,
-  CompanyManageRoute
+  CompanyManageRoute,
+  ComplaintsRoute
 } from "./components/ProtectedRoute";
 import AdminDashboard from "./pages/AdminDashboard";
+import AgentDashboard from "./pages/AgentDashboard";
 import Login from "./pages/Login";
 import Unauthorized from "./pages/Unauthorized";
 import routes from "./config/routes";
@@ -24,6 +26,7 @@ import AgentDetail from "./pages/AgentDetail";
 import Collection from "./pages/Collection";
 import Payments from "./pages/Payments";
 import Reports from "./pages/Reports";
+import Complaints from "./pages/Complaints";
 import useUserStore from "./store/userStore";
 import useTokenValidation from "./hooks/useTokenValidation";
 
@@ -89,7 +92,7 @@ function App() {
           path={routes.AGENT_DASHBOARD}
           element={
             <AgentRoute>
-              <AdminDashboard />
+              <AgentDashboard />
             </AgentRoute>
           }
         />
@@ -210,7 +213,15 @@ function App() {
           }
         />
 
-
+        {/* Complaints Routes */}
+        <Route
+          path="/complaints"
+          element={
+            <ComplaintsRoute>
+              <Complaints />
+            </ComplaintsRoute>
+          }
+        />
 
         {/* Default redirect based on user role */}
         <Route path="/" element={<DefaultRedirect />} />

@@ -75,15 +75,40 @@ export const deleteCustomer = async (id) => {
   }
 };
 
-export const addPendingCharge = async (customerId, pendingChargeData) => {
+export const addOnBill = async (customerId, data) => {
   try {
     const response = await axiosInstance.post(
-      `${URLS.CUSTOMERS}/${customerId}/pending-charge`,
-      pendingChargeData
+      `${URLS.CUSTOMERS}/${customerId}/add-on-bill`,
+      data
     );
     return response.data;
   } catch (error) {
-    console.error("Add pending charge failed:", error);
+    console.error("Add on bill failed:", error);
+    throw error;
+  }
+};
+
+export const adjustBalance = async (customerId, data) => {
+  try {
+    const response = await axiosInstance.post(
+      `${URLS.CUSTOMERS}/${customerId}/adjust-balance`,
+      data
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Adjust balance failed:", error);
+    throw error;
+  }
+};
+
+export const renewSubscription = async (customerId) => {
+  try {
+    const response = await axiosInstance.post(
+      `${URLS.CUSTOMERS}/${customerId}/renew-subscription`
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Renew subscription failed:", error);
     throw error;
   }
 };
@@ -96,6 +121,19 @@ export const getCustomerBalanceHistory = async (customerId) => {
     return response.data;
   } catch (error) {
     console.error("Get customer balance history failed:", error);
+    throw error;
+  }
+};
+
+export const generateBill = async (customerId, billData) => {
+  try {
+    const response = await axiosInstance.post(
+      `${URLS.CUSTOMERS}/${customerId}/generate-bill`,
+      billData
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Generate bill failed:", error);
     throw error;
   }
 };

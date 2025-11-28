@@ -45,7 +45,7 @@ ChartJS.register(
   ChartDataLabels
 );
 
-const AdminDashboard = () => {
+const AgentDashboard = () => {
   const { user } = useUserStore();
   const apiLoading = useApiLoading();
   const navigate = useNavigate();
@@ -171,7 +171,7 @@ const AdminDashboard = () => {
     maintainAspectRatio: false,
     plugins: {
       legend: {
-        display: false, // Hide legend since we'll show top 4 values separately
+        display: false,
       },
       tooltip: {
         callbacks: {
@@ -181,7 +181,7 @@ const AdminDashboard = () => {
         },
       },
       datalabels: {
-        display: false, // Hide all data labels on bars
+        display: false,
       },
     },
     scales: {
@@ -223,7 +223,7 @@ const AdminDashboard = () => {
         },
       },
       datalabels: {
-        display: false, // Hide numbers on pie charts
+        display: false,
       },
     },
   };
@@ -305,8 +305,8 @@ const AdminDashboard = () => {
           <div className="mb-6">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between">
               <div>
-                <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Dashboard</h1>
-                <p className="text-gray-600 mt-2">Overview of your business performance</p>
+                <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Agent Dashboard</h1>
+                <p className="text-gray-600 mt-2">Overview of your performance</p>
               </div>
               
               {/* Refresh Button */}
@@ -552,46 +552,6 @@ const AdminDashboard = () => {
                   </div>
                 </div>
 
-                {/* Inactive Customers */}
-                <div 
-                  onClick={() => navigate('/customers')}
-                  className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 cursor-pointer transition-transform hover:scale-[1.02] hover:shadow-md"
-                >
-                  <div className="flex items-center">
-                    <div className="flex-shrink-0">
-                      <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
-                        <Users className="w-5 h-5 text-gray-600" />
-                      </div>
-                    </div>
-                    <div className="ml-4">
-                      <p className="text-sm font-medium text-gray-500">Inactive Customers</p>
-                      <p className="text-2xl font-bold text-gray-900">
-                        {formatNumber(dashboardData.stats?.totalInactiveCustomers || 0)}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* This Month New Customers */}
-                <div 
-                  onClick={() => navigate('/customers')}
-                  className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 cursor-pointer transition-transform hover:scale-[1.02] hover:shadow-md"
-                >
-                  <div className="flex items-center">
-                    <div className="flex-shrink-0">
-                      <div className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center">
-                        <Users className="w-5 h-5 text-emerald-600" />
-                      </div>
-                    </div>
-                    <div className="ml-4">
-                      <p className="text-sm font-medium text-gray-500">New This Month</p>
-                      <p className="text-2xl font-bold text-gray-900">
-                        {formatNumber(dashboardData.stats?.thisMonthNewCustomers || 0)}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
                 {/* Open Complaints */}
                 <div 
                   onClick={() => navigate('/complaints')}
@@ -604,7 +564,7 @@ const AdminDashboard = () => {
                       </div>
                     </div>
                     <div className="ml-4">
-                      <p className="text-sm font-medium text-gray-500">Open Complaints</p>
+                      <p className="text-sm font-medium text-gray-500">Assigned Complaints</p>
                       <p className="text-2xl font-bold text-gray-900">
                         {formatNumber(dashboardData.stats?.openComplaints || 0)}
                       </p>
@@ -703,4 +663,5 @@ const AdminDashboard = () => {
   );
 };
 
-export default AdminDashboard;
+export default AgentDashboard;
+

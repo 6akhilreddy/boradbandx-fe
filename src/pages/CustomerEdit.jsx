@@ -10,6 +10,7 @@ import useUserStore from "../store/userStore";
 import Spinner from "../components/Spinner";
 import useApiLoading from "../hooks/useApiLoading";
 import { ArrowLeft, ArrowRight, Check } from "lucide-react";
+import DatePicker from "../components/DatePicker";
 
 const CustomerEdit = () => {
   const { id } = useParams();
@@ -533,15 +534,12 @@ const CustomerEdit = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Installation Date
-                  </label>
-                  <input
-                    type="date"
-                    {...register("installationDate")}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  <DatePicker
+                    label="Installation Date"
+                    name="installationDate"
+                    register={register}
+                    errors={errors}
                     placeholder="dd/mm/yyyy"
-                    title="Format: dd/mm/yyyy"
                   />
                 </div>
 
@@ -695,18 +693,14 @@ const CustomerEdit = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Start Date *
-                  </label>
-                  <input
-                    type="date"
-                    {...register("startDate", { required: "Start date is required" })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    title="Format: dd/mm/yyyy"
+                  <DatePicker
+                    label="Start Date"
+                    name="startDate"
+                    register={register}
+                    errors={errors}
+                    required={true}
+                    placeholder="dd/mm/yyyy"
                   />
-                  {errors.startDate && (
-                    <p className="text-red-500 text-sm mt-1">{errors.startDate.message}</p>
-                  )}
                 </div>
 
                 <div>

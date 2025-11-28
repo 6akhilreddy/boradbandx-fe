@@ -63,3 +63,65 @@ export const getAgentPaymentHistory = async (id, params = {}) => {
     throw error;
   }
 };
+
+export const getAgentMonthlyTrend = async (id) => {
+  try {
+    const response = await axiosInstance.get(
+      `${URLS.AGENTS}/${id}/monthly-trend`
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Get agent monthly trend failed:", error);
+    throw error;
+  }
+};
+
+export const getAgentAreasAndPermissions = async (id) => {
+  try {
+    const response = await axiosInstance.get(
+      `${URLS.AGENTS}/${id}/areas-permissions`
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Get agent areas and permissions failed:", error);
+    throw error;
+  }
+};
+
+export const updateAgentAreasAndPermissions = async (id, data) => {
+  try {
+    const response = await axiosInstance.put(
+      `${URLS.AGENTS}/${id}/areas-permissions`,
+      data
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Update agent areas and permissions failed:", error);
+    throw error;
+  }
+};
+
+export const updateAgentAreas = async (id, assignedAreas) => {
+  try {
+    const response = await axiosInstance.put(`${URLS.AGENTS}/${id}/areas`, {
+      assignedAreas,
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Update agent areas failed:", error);
+    throw error;
+  }
+};
+
+export const updateAgentPermissions = async (id, agentPermissions) => {
+  try {
+    const response = await axiosInstance.put(
+      `${URLS.AGENTS}/${id}/permissions`,
+      { agentPermissions }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Update agent permissions failed:", error);
+    throw error;
+  }
+};

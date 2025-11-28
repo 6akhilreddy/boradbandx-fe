@@ -7,10 +7,13 @@ import { logout } from "../api/authApi";
 
 const Navbar = () => {
   const navigate = useNavigate();
-  const { user, clearUser } = useUserStore();
+  const { user, clearUser, isImpersonating, getOriginalAdmin } = useUserStore();
 
   const companyName = user?.company?.name || user?.companyName || "Srishti Broadband";
-  const username = user?.name || "User";
+  // Show admin name in navbar when impersonating, agent name in sidebar
+  const username = isImpersonating() && getOriginalAdmin() 
+    ? getOriginalAdmin().name || user?.name || "User"
+    : user?.name || "User";
 
   // Separate states/refs for mobile and desktop menus
   const [openMobile, setOpenMobile] = useState(false);

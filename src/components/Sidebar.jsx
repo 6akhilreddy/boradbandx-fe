@@ -11,18 +11,36 @@ import {
   Menu,
   X,
   Building,
+  MessageSquare,
+  ArrowLeft,
 } from "lucide-react";
 import useUserStore from "../store/userStore";
 import routes from "../config/routes";
+import { exitImpersonation } from "../api/authApi";
 
 const Sidebar = () => {
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
-  const { user } = useUserStore();
+  const { user, setUser } = useUserStore();
   const hasPermission = useUserStore((state) => state.hasPermission);
   const isSuperAdmin = useUserStore((state) => state.isSuperAdmin);
   const isAdmin = useUserStore((state) => state.isAdmin);
   const isAgent = useUserStore((state) => state.isAgent);
+  const isImpersonating = useUserStore((state) => state.isImpersonating);
   const navigate = useNavigate();
+
+  const handleExitImpersonation = async () => {
+    try {
+      const response = await exitImpersonation();
+      setUser(response.user, response.token);
+      
+      // Wait a bit to ensure state is persisted to localStorage
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      navigate(routes.ADMIN_DASHBOARD, { replace: true });
+    } catch (error) {
+      console.error("Failed to exit impersonation:", error);
+    }
+  };
 
   // Get dashboard route based on user role
   const getDashboardRoute = () => {
@@ -95,6 +113,14 @@ const Sidebar = () => {
       icon: CreditCard, 
       show: hasPermission("payments.view") 
     },
+    
+    // Complaints
+    { 
+      name: "Complaints", 
+      path: "/complaints", 
+      icon: MessageSquare, 
+      show: hasPermission("complaints.view") || hasPermission("complaint.add") || isAdmin() || isSuperAdmin() 
+    },
   ];
 
   const filteredItems = navItems.filter((item) => item.show);
@@ -133,11 +159,21 @@ const Sidebar = () => {
                 {user?.name?.charAt(0) || "U"}
               </span>
             </div>
-            <div>
-              <p className="text-sm font-medium text-gray-900">{user?.name}</p>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-gray-900 truncate">{user?.name}</p>
               <p className="text-xs text-gray-500 capitalize">{user?.roleCode?.toLowerCase().replace('_', ' ')}</p>
             </div>
           </div>
+          {/* Back to Admin button when impersonating */}
+          {isImpersonating() && (
+            <button
+              onClick={handleExitImpersonation}
+              className="mt-3 w-full flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium cursor-pointer"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to Admin
+            </button>
+          )}
         </div>
 
         <nav className="flex flex-col mt-6 px-3 overflow-y-auto space-y-2.5">

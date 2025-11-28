@@ -36,11 +36,10 @@ const BalanceHistory = ({ customerId }) => {
     switch (type) {
       case "PAYMENT":
         return <Banknote className="w-6 h-6 text-blue-500" />;
-      case "BILL_GENERATION":
+      case "INVOICE":
         return <FileText className="w-6 h-6 text-blue-500" />;
       case "BALANCE_ADJUSTMENT":
-      case "PENDING_CHARGE_ADDED":
-      case "PENDING_CHARGE_APPLIED":
+      case "ADD_ON_BILL":
         return <Hand className="w-6 h-6 text-blue-500" />;
       default:
         return <Banknote className="w-6 h-6 text-blue-500" />;
@@ -55,22 +54,27 @@ const BalanceHistory = ({ customerId }) => {
           month: 'short', 
           year: '2-digit' 
         })}`;
-      case "BILL_GENERATION":
-        return `Bill From ${new Date(transaction.transactionDate).toLocaleDateString('en-US', { 
-          day: '2-digit', 
-          month: 'short', 
-          year: '2-digit' 
-        })} To ${new Date(transaction.transactionDate).toLocaleDateString('en-US', { 
+      case "INVOICE":
+        if (transaction.invoice?.periodStart && transaction.invoice?.periodEnd) {
+          return `Bill From ${new Date(transaction.invoice.periodStart).toLocaleDateString('en-US', { 
+            day: '2-digit', 
+            month: 'short', 
+            year: '2-digit' 
+          })} To ${new Date(transaction.invoice.periodEnd).toLocaleDateString('en-US', { 
+            day: '2-digit', 
+            month: 'short', 
+            year: '2-digit' 
+          })}`;
+        }
+        return `Invoice ${new Date(transaction.transactionDate).toLocaleDateString('en-US', { 
           day: '2-digit', 
           month: 'short', 
           year: '2-digit' 
         })}`;
       case "BALANCE_ADJUSTMENT":
         return transaction.description || "Balance Adjustment";
-      case "PENDING_CHARGE_ADDED":
-        return transaction.description || "Pending Charge Added";
-      case "PENDING_CHARGE_APPLIED":
-        return transaction.description || "Pending Charge Applied";
+      case "ADD_ON_BILL":
+        return transaction.description || "Add On Bill";
       default:
         return transaction.description || "Transaction";
     }
@@ -79,25 +83,26 @@ const BalanceHistory = ({ customerId }) => {
   const getTransactionSubtitle = (transaction) => {
     switch (transaction.type) {
       case "PAYMENT":
-        return `Recorded On ${new Date(transaction.recordedDate).toLocaleDateString('en-US', { 
+        return `Recorded On ${new Date(transaction.transactionDate || transaction.recordedDate).toLocaleDateString('en-US', { 
           day: '2-digit', 
           month: 'short', 
           year: 'numeric' 
         })}`;
-      case "BILL_GENERATION":
-        return `Billed On ${new Date(transaction.recordedDate).toLocaleDateString('en-US', { 
+      case "INVOICE":
+        return `Billed On ${new Date(transaction.transactionDate || transaction.recordedDate).toLocaleDateString('en-US', { 
           day: '2-digit', 
           month: 'short', 
           year: 'numeric' 
         })}`;
       case "BALANCE_ADJUSTMENT":
-        return `Changed On ${new Date(transaction.recordedDate).toLocaleDateString('en-US', { 
+      case "ADD_ON_BILL":
+        return `Changed On ${new Date(transaction.transactionDate || transaction.recordedDate).toLocaleDateString('en-US', { 
           day: '2-digit', 
           month: 'short', 
           year: 'numeric' 
         })}`;
       default:
-        return `Recorded On ${new Date(transaction.recordedDate).toLocaleDateString('en-US', { 
+        return `Recorded On ${new Date(transaction.transactionDate || transaction.recordedDate).toLocaleDateString('en-US', { 
           day: '2-digit', 
           month: 'short', 
           year: 'numeric' 
@@ -107,7 +112,7 @@ const BalanceHistory = ({ customerId }) => {
 
   const getAmountDisplay = (transaction) => {
     const amount = Math.abs(transaction.amount);
-    const isNegative = transaction.type === "PAYMENT" || transaction.amount < 0;
+    const isNegative = transaction.direction === "CREDIT" || transaction.type === "PAYMENT";
     
     if (isNegative) {
       return <span className="text-red-600">(-) ₹{amount.toLocaleString()}</span>;
@@ -240,24 +245,12 @@ const BalanceHistory = ({ customerId }) => {
         </table>
       </div>
 
-      {/* Pending Charges Summary */}
-      {pendingCharges.totalAmount > 0 && (
+      {/* Current Balance Summary */}
+      {currentBalance !== undefined && (
         <div className="p-6 border-t bg-gray-50">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Pending Charges</h3>
-          <div className="space-y-2">
-            {pendingCharges.charges.map((charge) => (
-              <div key={charge.id} className="flex justify-between items-center p-3 bg-white rounded border">
-                <div>
-                  <div className="font-medium text-gray-900">{charge.description}</div>
-                  <div className="text-sm text-gray-500">{charge.chargeType.replace('_', ' ')}</div>
-                </div>
-                <div className="text-lg font-semibold text-gray-900">₹{charge.amount.toLocaleString()}</div>
-              </div>
-            ))}
-            <div className="flex justify-between items-center p-3 bg-blue-50 rounded border">
-              <div className="font-semibold text-gray-900">Total Pending</div>
-              <div className="text-lg font-bold text-blue-600">₹{pendingCharges.totalAmount.toLocaleString()}</div>
-            </div>
+          <div className="flex justify-between items-center p-3 bg-blue-50 rounded border">
+            <div className="font-semibold text-gray-900">Current Balance</div>
+            <div className="text-lg font-bold text-blue-600">₹{currentBalance.toLocaleString()}</div>
           </div>
         </div>
       )}

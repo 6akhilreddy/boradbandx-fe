@@ -16,6 +16,7 @@ import { searchCustomers, getCustomerPaymentDetails, recordPayment } from '../ap
 import useApiLoading from '../hooks/useApiLoading';
 import Spinner from '../components/Spinner';
 import Layout from '../components/Layout';
+import DateTimePicker from '../components/DateTimePicker';
 
 const Payments = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -376,18 +377,11 @@ const Payments = () => {
 
                     {/* Record Time */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Record Time
-                      </label>
-                      <div className="relative">
-                        <input
-                          type="datetime-local"
-                          value={new Date().toISOString().slice(0, 16)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          readOnly
-                        />
-                        <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                      </div>
+                      <DateTimePicker
+                        label="Record Time"
+                        value={new Date().toISOString().slice(0, 16)}
+                        disabled={true}
+                      />
                     </div>
 
                     {/* Comments */}

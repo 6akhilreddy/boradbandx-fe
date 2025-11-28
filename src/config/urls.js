@@ -1,5 +1,7 @@
-export const BASE_URL = "https://broadbandx-be.vercel.app/api";
+// export const BASE_URL = "https://broadbandx-be.vercel.app/api";
+export const BASE_URL = "http://localhost:3000/api";
 export const URLS = {
+  AUTH: "/auth",
   LOGIN: "/auth/login",
   LOGOUT: "/auth/logout",
   COMPANIES: "/companies",
@@ -18,4 +20,5 @@ export const URLS = {
   DASHBOARD_STATS: "/dashboard/stats",
   PAYMENTS: "/payments",
   DASHBOARD: "/dashboard",
+  COMPLAINTS: "/complaints",
 };

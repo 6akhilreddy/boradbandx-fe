@@ -6,6 +6,11 @@ import {
   updateAgent,
   deleteAgent,
   getAgentPaymentHistory,
+  getAgentMonthlyTrend,
+  getAgentAreasAndPermissions,
+  updateAgentAreasAndPermissions,
+  updateAgentAreas,
+  updateAgentPermissions,
 } from "../api/agentApi";
 
 const useAgentStore = create((set, get) => ({
@@ -84,6 +89,66 @@ const useAgentStore = create((set, get) => ({
       const payments = await getAgentPaymentHistory(id, params);
       set({ loading: false });
       return payments;
+    } catch (err) {
+      set({ error: err.message, loading: false });
+      throw err;
+    }
+  },
+
+  fetchAgentMonthlyTrend: async (id) => {
+    set({ loading: true, error: null });
+    try {
+      const trend = await getAgentMonthlyTrend(id);
+      set({ loading: false });
+      return trend;
+    } catch (err) {
+      set({ error: err.message, loading: false });
+      throw err;
+    }
+  },
+
+  fetchAgentAreasAndPermissions: async (id) => {
+    set({ loading: true, error: null });
+    try {
+      const data = await getAgentAreasAndPermissions(id);
+      set({ loading: false });
+      return data;
+    } catch (err) {
+      set({ error: err.message, loading: false });
+      throw err;
+    }
+  },
+
+  updateAgentAreasAndPermissions: async (id, data) => {
+    set({ loading: true, error: null });
+    try {
+      const result = await updateAgentAreasAndPermissions(id, data);
+      set({ loading: false });
+      return result;
+    } catch (err) {
+      set({ error: err.message, loading: false });
+      throw err;
+    }
+  },
+
+  updateAgentAreas: async (id, assignedAreas) => {
+    set({ loading: true, error: null });
+    try {
+      const result = await updateAgentAreas(id, assignedAreas);
+      set({ loading: false });
+      return result;
+    } catch (err) {
+      set({ error: err.message, loading: false });
+      throw err;
+    }
+  },
+
+  updateAgentPermissions: async (id, agentPermissions) => {
+    set({ loading: true, error: null });
+    try {
+      const result = await updateAgentPermissions(id, agentPermissions);
+      set({ loading: false });
+      return result;
     } catch (err) {
       set({ error: err.message, loading: false });
       throw err;

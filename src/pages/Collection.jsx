@@ -1,22 +1,17 @@
 import { useEffect, useState } from "react";
 import { 
-  Calendar, 
   Filter, 
   RefreshCw, 
-  Download, 
-  TrendingUp, 
-  Users, 
-  IndianRupee,
+  Download,
   AlertCircle,
-  CheckCircle,
-  Clock,
   X
 } from "lucide-react";
-import { SiPhonepe, SiGooglepay } from "react-icons/si";
+import { useNavigate } from "react-router-dom";
 import useCollectionStore from "../store/collectionStore";
 import Layout from "../components/Layout";
 import Spinner from "../components/Spinner";
 import useApiLoading from "../hooks/useApiLoading";
+import DatePicker from "../components/DatePicker";
 
 const Collection = () => {
   const {
@@ -33,6 +28,7 @@ const Collection = () => {
     clearError
   } = useCollectionStore();
   const apiLoading = useApiLoading();
+  const navigate = useNavigate();
 
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [localFilters, setLocalFilters] = useState({
@@ -115,80 +111,38 @@ const Collection = () => {
     });
   };
 
-  const getPaymentMethodIcon = (method) => {
-    switch (method) {
-      case 'UPI':
-        return (
-          <div className="w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center">
-            <span className="text-purple-600 text-xs font-bold">UPI</span>
-          </div>
-        );
-      case 'CASH':
-        return (
-          <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center">
-            <span className="text-green-600 text-xs font-bold">₹</span>
-          </div>
-        );
-      case 'BHIM':
-        return (
-          <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
-            <span className="text-blue-600 text-xs font-bold">BH</span>
-          </div>
-        );
-      case 'PhonePe':
-        return (
-          <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: '#5F259F' }}>
-            <SiPhonepe className="w-4 h-4 text-white" />
-          </div>
-        );
-      case 'CARD':
-        return (
-          <div className="w-6 h-6 bg-indigo-100 rounded-full flex items-center justify-center">
-            <span className="text-indigo-600 text-xs font-bold">💳</span>
-          </div>
-        );
-      default:
-        return (
-          <div className="w-6 h-6 bg-gray-100 rounded-full flex items-center justify-center">
-            <span className="text-gray-600 text-xs font-bold">?</span>
-          </div>
-        );
-    }
+  // Process data to group by area for payment details
+  const getAreaPaymentDetails = (dayData) => {
+    const areaGroups = {};
+    
+    dayData.customers.forEach(customer => {
+      const areaName = customer.area || 'Unknown Area';
+      if (!areaGroups[areaName]) {
+        areaGroups[areaName] = {};
+      }
+      
+      const method = customer.paymentMethod || 'UNKNOWN';
+      if (!areaGroups[areaName][method]) {
+        areaGroups[areaName][method] = {
+          method,
+          customers: 0,
+          amount: 0,
+          discount: 0,
+          payment: 0
+        };
+      }
+      
+      areaGroups[areaName][method].customers++;
+      areaGroups[areaName][method].amount += customer.paidAmount || 0;
+      areaGroups[areaName][method].discount += customer.discount || 0;
+      areaGroups[areaName][method].payment += (customer.paidAmount || 0) + (customer.discount || 0);
+    });
+    
+    return areaGroups;
   };
 
-  const getPaymentMethodColor = (method) => {
-    switch (method) {
-      case 'UPI':
-        return 'bg-purple-100 text-purple-800 border-purple-200';
-      case 'CASH':
-        return 'bg-green-100 text-green-800 border-green-200';
-      case 'BHIM':
-        return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'PhonePe':
-        return 'text-white border-purple-300';
-      case 'CARD':
-        return 'bg-indigo-100 text-indigo-800 border-indigo-200';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
-
-  const getPaymentMethodBackground = (method) => {
-    switch (method) {
-      case 'PhonePe':
-        return '#5F259F';
-      default:
-        return '';
-    }
-  };
-
-  const getStatusIcon = (balance) => {
-    if (balance === 0) {
-      return <CheckCircle className="w-4 h-4 text-green-500" />;
-    } else if (balance > 0) {
-      return <AlertCircle className="w-4 h-4 text-red-500" />;
-    }
-    return <Clock className="w-4 h-4 text-yellow-500" />;
+  const handleCustomerClick = (customerId) => {
+    navigate(`/customers/${customerId}`);
   };
 
   if ((loading || apiLoading) && !collectionData.length) {
@@ -203,30 +157,30 @@ const Collection = () => {
 
   return (
     <Layout>
-      <div className="space-y-6">
+      <div className="space-y-4">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Collection Dashboard</h1>
-            <p className="text-gray-600 mt-1">Track daily collections and payment summaries</p>
+            <h1 className="text-lg font-bold text-gray-900">Collection Dashboard</h1>
+            <p className="text-xs text-gray-600 mt-1">Track daily collections and payment summaries</p>
           </div>
-          <div className="flex items-center space-x-3 mt-4 sm:mt-0">
+          <div className="flex items-center space-x-2 mt-4 sm:mt-0">
             <button
               onClick={() => setIsFilterOpen(!isFilterOpen)}
-              className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 transition-colors"
+              className="flex items-center px-3 py-1.5 text-xs bg-white border border-gray-300 rounded shadow-sm hover:bg-gray-50 transition-colors"
             >
-              <Filter className="w-4 h-4 mr-2" />
+              <Filter className="w-3 h-3 mr-1.5" />
               Filters
             </button>
             <button
               onClick={handleRefresh}
-              className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 transition-colors"
+              className="flex items-center px-3 py-1.5 text-xs bg-white border border-gray-300 rounded shadow-sm hover:bg-gray-50 transition-colors"
             >
-              <RefreshCw className="w-4 h-4 mr-2" />
+              <RefreshCw className="w-3 h-3 mr-1.5" />
               Refresh
             </button>
-            <button className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg shadow-sm hover:bg-blue-700 transition-colors">
-              <Download className="w-4 h-4 mr-2" />
+            <button className="flex items-center px-3 py-1.5 text-xs bg-blue-600 text-white rounded shadow-sm hover:bg-blue-700 transition-colors">
+              <Download className="w-3 h-3 mr-1.5" />
               Export
             </button>
           </div>
@@ -234,15 +188,15 @@ const Collection = () => {
 
         {/* Error Message */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="bg-red-50 border border-red-200 rounded p-3">
             <div className="flex items-center">
-              <AlertCircle className="w-5 h-5 text-red-400 mr-2" />
-              <p className="text-red-800">{error}</p>
+              <AlertCircle className="w-4 h-4 text-red-400 mr-2" />
+              <p className="text-xs text-red-800">{error}</p>
               <button
                 onClick={clearError}
                 className="ml-auto text-red-400 hover:text-red-600"
               >
-                ×
+                <X className="w-4 h-4" />
               </button>
             </div>
           </div>
@@ -250,39 +204,35 @@ const Collection = () => {
 
         {/* Filters */}
         {isFilterOpen && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Filters & Options</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div className="bg-white rounded shadow-sm border border-gray-200 p-4">
+            <h3 className="text-sm font-medium text-gray-900 mb-3">Filters & Options</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs font-medium text-gray-700 mb-1">
                   Start Date
                 </label>
-                <input
-                  type="date"
+                <DatePicker
                   value={localFilters.startDate || ''}
                   onChange={(e) => handleFilterChange('startDate', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs font-medium text-gray-700 mb-1">
                   End Date
                 </label>
-                <input
-                  type="date"
+                <DatePicker
                   value={localFilters.endDate || ''}
                   onChange={(e) => handleFilterChange('endDate', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs font-medium text-gray-700 mb-1">
                   Area
                 </label>
                 <select
                   value={localFilters.areaId || ''}
                   onChange={(e) => handleFilterChange('areaId', e.target.value || null)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">All Areas</option>
                   {areas.map((area) => (
@@ -293,13 +243,13 @@ const Collection = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs font-medium text-gray-700 mb-1">
                   Payment Method
                 </label>
                 <select
                   value={localFilters.paymentMethod || ''}
                   onChange={(e) => handleFilterChange('paymentMethod', e.target.value || null)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">All Methods</option>
                   <option value="UPI">UPI</option>
@@ -310,16 +260,16 @@ const Collection = () => {
                 </select>
               </div>
             </div>
-            <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-3">
+            <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-2">
               <button
                 onClick={handleApplyFilters}
-                className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="w-full sm:w-auto px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
               >
                 Apply Filters
               </button>
               <button
                 onClick={handleClearFilters}
-                className="w-full sm:w-auto px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                className="w-full sm:w-auto px-3 py-1.5 text-xs bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors"
               >
                 Clear Filters
               </button>
@@ -327,257 +277,166 @@ const Collection = () => {
           </div>
         )}
 
-                {/* Summary Cards */}
-        {summary && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <div className="flex items-center">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <TrendingUp className="w-6 h-6 text-blue-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Total Payments</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {formatCurrency(summary.totalPayments)}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <div className="flex items-center">
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <CheckCircle className="w-6 h-6 text-green-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Amount Collected</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {formatCurrency(summary.totalPaid)}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <div className="flex items-center">
-                <div className="p-2 bg-red-100 rounded-lg">
-                  <AlertCircle className="w-6 h-6 text-red-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Amount to Collect</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {formatCurrency(summary.totalPayments - summary.totalPaid)}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <div className="flex items-center">
-                <div className="p-2 bg-purple-100 rounded-lg">
-                  <Users className="w-6 h-6 text-purple-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Total Customers</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {summary.totalCustomers}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <div className="flex items-center">
-                <div className="p-2 bg-yellow-100 rounded-lg">
-                  <Clock className="w-6 h-6 text-yellow-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Partially Paid Customers</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {Math.round(summary.totalCustomers * 0.15)}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <div className="flex items-center">
-                <div className="p-2 bg-orange-100 rounded-lg">
-                  <AlertCircle className="w-6 h-6 text-orange-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Pending Customers</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {Math.round(summary.totalCustomers * 0.05)}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Daily Collections */}
-        <div className="space-y-6">
-                      {(loading || apiLoading) ? (
-              <div className="flex items-center justify-center h-32">
-                <Spinner loadingTxt="Loading collection data..." size="medium" />
-              </div>
-            ) : collectionData.length === 0 ? (
+        <div className="space-y-4">
+          {(loading || apiLoading) ? (
+            <div className="flex items-center justify-center h-32">
+              <Spinner loadingTxt="Loading collection data..." size="medium" />
+            </div>
+          ) : collectionData.length === 0 ? (
             <div className="flex items-center justify-center h-32 text-gray-500">
-              <p>No collection data found for the selected period.</p>
+              <p className="text-xs">No collection data found for the selected period.</p>
             </div>
           ) : (
-            collectionData.map((dayData) => (
-              <div key={dayData.date} className="bg-white rounded-lg shadow-sm border border-gray-200">
-                {/* Date Header */}
-                <div className="px-6 py-4 border-b border-gray-200">
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    {formatDate(dayData.date)}
-                  </h3>
-                </div>
+            collectionData.map((dayData) => {
+              const areaPaymentDetails = getAreaPaymentDetails(dayData);
+              const totalCustomers = dayData.totalCustomers || dayData.customers.length;
+              const totalAmount = dayData.customers.reduce((sum, c) => sum + (c.paidAmount || 0), 0);
+              const totalDiscount = dayData.customers.reduce((sum, c) => sum + (c.discount || 0), 0);
+              const totalPayment = totalAmount + totalDiscount;
 
-                {/* Daily Summary */}
-                <div className="px-6 py-4 bg-gray-50">
-                  <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 sm:gap-4">
-                    <div>
-                      <p className="text-sm text-gray-600">Amount to Collect</p>
-                      <p className="text-lg font-medium text-gray-900">{formatCurrency(dayData.totalAmount + dayData.totalDiscount)}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600">Amount Collected</p>
-                      <p className="text-lg font-medium text-gray-900">{formatCurrency(dayData.totalAmount)}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600">Discount Given</p>
-                      <p className="text-lg font-medium text-gray-900">{formatCurrency(dayData.totalDiscount)}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600">Balance to Collect</p>
-                      <p className="text-lg font-medium text-gray-900">{formatCurrency(dayData.totalDiscount)}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600">Customers to Collect</p>
-                      <p className="text-lg font-medium text-gray-900">{dayData.totalCustomers}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600">Fully Collected</p>
-                      <p className="text-lg font-medium text-gray-900">{Math.round(dayData.totalCustomers * 0.8)}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600">Partially Collected</p>
-                      <p className="text-lg font-medium text-gray-900">{Math.round(dayData.totalCustomers * 0.15)}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600">Pending</p>
-                      <p className="text-lg font-medium text-gray-900">{Math.round(dayData.totalCustomers * 0.05)}</p>
-                    </div>
+              return (
+                <div key={dayData.date} className="bg-white rounded shadow-sm border border-gray-200">
+                  {/* Date Header */}
+                  <div className="px-4 py-2 bg-blue-600 text-white">
+                    <h3 className="text-sm font-semibold text-center">
+                      {formatDate(dayData.date)}
+                    </h3>
                   </div>
-                </div>
 
-                {/* Payment Methods Breakdown */}
-                <div className="p-6 space-y-4">
-                  {Object.values(dayData.paymentsByMethod).map((methodData) => (
-                    <div key={methodData.method} className="border border-gray-200 rounded-lg">
-                                             {/* Method Header */}
-                       <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
-                         <div className="flex items-center justify-between">
-                           <div className="flex items-center space-x-3">
-                             {getPaymentMethodIcon(methodData.method)}
-                             <span 
-                               className={`px-3 py-1 rounded-full text-sm font-medium border ${getPaymentMethodColor(methodData.method)}`}
-                               style={{ backgroundColor: getPaymentMethodBackground(methodData.method) }}
-                             >
-                               {methodData.method}
-                             </span>
-                           </div>
-                           <div className="flex items-center space-x-4">
-                             <span className="hidden md:block text-sm font-medium text-black">
-                               {methodData.customers} customer{methodData.customers !== 1 ? 's' : ''}
-                             </span>
-                             <div className="text-right">
-                               <p className="text-sm text-gray-600">Total: <span className="font-bold text-black">{formatCurrency(methodData.payment)}</span></p>
-                             </div>
-                           </div>
-                         </div>
-                       </div>
-
-                      {/* Customer Details */}
+                  {/* Layout: 2 rows */}
+                  <div className="p-4 flex flex-col">
+                    {/* Row 1: Summary Table */}
+                    <div className="mb-2">
                       <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200">
+                        <table className="min-w-full text-xs">
                           <thead className="bg-gray-50">
                             <tr>
-                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Customer
-                              </th>
-                              <th className="hidden md:table-cell px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Area
-                              </th>
-                              <th className="hidden lg:table-cell px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Previous Balance
-                              </th>
-                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Paid Amount
-                              </th>
-                              <th className="hidden md:table-cell px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Discount
-                              </th>
-                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Current Balance
-                              </th>
-                              <th className="hidden lg:table-cell px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Collected By
-                              </th>
-                              <th className="hidden md:table-cell px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Customer Code
-                              </th>
+                              <th className="px-3 py-2 text-left font-medium text-gray-700 border border-gray-200">Customer</th>
+                              <th className="px-3 py-2 text-left font-medium text-gray-700 border border-gray-200">Amount</th>
+                              <th className="px-3 py-2 text-left font-medium text-gray-700 border border-gray-200">Discount</th>
+                              <th className="px-3 py-2 text-left font-medium text-gray-700 border border-gray-200">Total Payment</th>
                             </tr>
                           </thead>
-                          <tbody className="bg-white divide-y divide-gray-200">
-                            {dayData.customers
-                              .filter(customer => customer.paymentMethod === methodData.method)
-                              .map((customer, index) => (
-                                <tr key={index} className="hover:bg-gray-50">
-                                  <td className="px-4 py-3 whitespace-nowrap">
-                                    <div className="flex items-center">
-                                      {getStatusIcon(customer.currentBalance)}
-                                      <span className="ml-2 text-sm font-medium text-black">
-                                        {customer.name}
-                                      </span>
-                                    </div>
-                                  </td>
-                                  <td className="hidden md:table-cell px-4 py-3 whitespace-nowrap text-sm text-black">
-                                    {customer.area}
-                                  </td>
-                                  <td className="hidden lg:table-cell px-4 py-3 whitespace-nowrap text-sm text-black">
-                                    {formatCurrency(customer.previousBalance)}
-                                  </td>
-                                  <td className="px-4 py-3 whitespace-nowrap text-sm text-black">
-                                    {formatCurrency(customer.paidAmount)}
-                                  </td>
-                                  <td className="hidden md:table-cell px-4 py-3 whitespace-nowrap text-sm text-black">
-                                    {formatCurrency(customer.discount)}
-                                  </td>
-                                                                     <td className="px-4 py-3 whitespace-nowrap">
-                                     <span className="text-sm font-medium text-black">
-                                       {formatCurrency(customer.currentBalance)}
-                                     </span>
-                                   </td>
-                                  <td className="hidden lg:table-cell px-4 py-3 whitespace-nowrap text-sm text-black">
-                                    {customer.collectedBy}
-                                  </td>
-                                  <td className="hidden md:table-cell px-4 py-3 whitespace-nowrap text-sm text-black">
-                                    {customer.customerCode}
-                                  </td>
-                                </tr>
-                              ))}
+                          <tbody className="bg-white">
+                            <tr>
+                              <td className="px-3 py-2 border border-gray-200">{totalCustomers}</td>
+                              <td className="px-3 py-2 border border-gray-200">{formatCurrency(totalAmount)}</td>
+                              <td className="px-3 py-2 border border-gray-200">{formatCurrency(totalDiscount)}</td>
+                              <td className="px-3 py-2 border border-gray-200">{formatCurrency(totalPayment)}</td>
+                            </tr>
                           </tbody>
                         </table>
                       </div>
                     </div>
-                  ))}
+
+                    {/* Row 2: Two Columns */}
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* Column 1: Area Cards */}
+                      <div className="col-span-1 space-y-3">
+                        {Object.entries(areaPaymentDetails).map(([areaName, methods]) => {
+                          const areaTotalCustomers = Object.values(methods).reduce((sum, m) => sum + m.customers, 0);
+                          const areaTotalAmount = Object.values(methods).reduce((sum, m) => sum + m.amount, 0);
+                          const areaTotalDiscount = Object.values(methods).reduce((sum, m) => sum + m.discount, 0);
+                          const areaTotalPayment = Object.values(methods).reduce((sum, m) => sum + m.payment, 0);
+
+                          return (
+                            <div key={areaName} className="bg-white border border-gray-200 rounded shadow-sm">
+                              <div className="px-3 py-2 bg-gray-50 border-b border-gray-200">
+                                <h4 className="text-xs font-medium text-gray-700">{areaName} Area Payment Details</h4>
+                              </div>
+                              <div className="p-3">
+                                <div className="overflow-x-auto">
+                                  <table className="min-w-full text-xs">
+                                    <thead className="bg-gray-50">
+                                      <tr>
+                                        <th className="px-2 py-1.5 text-left font-medium text-gray-700 border border-gray-200">Mode</th>
+                                        <th className="px-2 py-1.5 text-left font-medium text-gray-700 border border-gray-200">Customer</th>
+                                        <th className="px-2 py-1.5 text-left font-medium text-gray-700 border border-gray-200">Amount</th>
+                                        <th className="px-2 py-1.5 text-left font-medium text-gray-700 border border-gray-200">Discount</th>
+                                        <th className="px-2 py-1.5 text-left font-medium text-gray-700 border border-gray-200">Payment</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="bg-white">
+                                      {Object.values(methods).map((methodData, idx) => (
+                                        <tr key={idx}>
+                                          <td className="px-2 py-1.5 border border-gray-200">{methodData.method}</td>
+                                          <td className="px-2 py-1.5 border border-gray-200">{methodData.customers}</td>
+                                          <td className="px-2 py-1.5 border border-gray-200">{formatCurrency(methodData.amount)}</td>
+                                          <td className="px-2 py-1.5 border border-gray-200">{formatCurrency(methodData.discount)}</td>
+                                          <td className="px-2 py-1.5 border border-gray-200">{formatCurrency(methodData.payment)}</td>
+                                        </tr>
+                                      ))}
+                                      <tr className="bg-gray-50 font-medium">
+                                        <td className="px-2 py-1.5 border border-gray-200">Area Total</td>
+                                        <td className="px-2 py-1.5 border border-gray-200">{areaTotalCustomers}</td>
+                                        <td className="px-2 py-1.5 border border-gray-200">{formatCurrency(areaTotalAmount)}</td>
+                                        <td className="px-2 py-1.5 border border-gray-200">{formatCurrency(areaTotalDiscount)}</td>
+                                        <td className="px-2 py-1.5 border border-gray-200">{formatCurrency(areaTotalPayment)}</td>
+                                      </tr>
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Column 2: Customer Details Table Card */}
+                      <div className="col-span-1">
+                        <div className="bg-white border border-gray-200 rounded shadow-sm h-full flex flex-col">
+                          <div className="px-3 py-2 bg-gray-50 border-b border-gray-200">
+                            <h4 className="text-xs font-medium text-gray-700">Customer Details</h4>
+                          </div>
+                          <div className="p-3 flex-1 overflow-auto">
+                            <div className="overflow-x-auto">
+                              <table className="min-w-full text-xs">
+                                <thead className="bg-gray-50 sticky top-0">
+                                  <tr>
+                                    <th className="px-2 py-1.5 text-left font-medium text-gray-700 border border-gray-200">Name</th>
+                                    <th className="px-2 py-1.5 text-left font-medium text-gray-700 border border-gray-200">Area</th>
+                                    <th className="px-2 py-1.5 text-left font-medium text-gray-700 border border-gray-200">Previous Balance</th>
+                                    <th className="px-2 py-1.5 text-left font-medium text-gray-700 border border-gray-200">Paid Amount</th>
+                                    <th className="px-2 py-1.5 text-left font-medium text-gray-700 border border-gray-200">Discount</th>
+                                    <th className="px-2 py-1.5 text-left font-medium text-gray-700 border border-gray-200">Current Balance</th>
+                                    <th className="px-2 py-1.5 text-left font-medium text-gray-700 border border-gray-200">Collected By</th>
+                                    <th className="px-2 py-1.5 text-left font-medium text-gray-700 border border-gray-200">Customer Code</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="bg-white">
+                                  {dayData.customers.map((customer, index) => (
+                                    <tr key={index} className="hover:bg-gray-50">
+                                      <td className="px-2 py-1.5 border border-gray-200">
+                                        <button
+                                          onClick={() => handleCustomerClick(customer.id)}
+                                          className="text-blue-600 hover:text-blue-800 hover:underline text-xs"
+                                        >
+                                          {customer.name}
+                                        </button>
+                                      </td>
+                                      <td className="px-2 py-1.5 border border-gray-200 text-xs">{customer.area}</td>
+                                      <td className="px-2 py-1.5 border border-gray-200 text-xs">{formatCurrency(customer.previousBalance)}</td>
+                                      <td className="px-2 py-1.5 border border-gray-200 text-xs">{formatCurrency(customer.paidAmount)}</td>
+                                      <td className="px-2 py-1.5 border border-gray-200 text-xs">{formatCurrency(customer.discount)}</td>
+                                      <td className={`px-2 py-1.5 border border-gray-200 text-xs ${customer.currentBalance > 0 ? 'text-red-600' : ''}`}>
+                                        {formatCurrency(customer.currentBalance)}
+                                      </td>
+                                      <td className="px-2 py-1.5 border border-gray-200 text-xs">{customer.collectedBy}</td>
+                                      <td className="px-2 py-1.5 border border-gray-200 text-xs">{customer.customerCode}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>

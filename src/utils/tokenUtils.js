@@ -16,6 +16,10 @@ export const isTokenExpired = (token) => {
 export const validateAndHandleToken = () => {
   const { token, clearUser } = useUserStore.getState();
 
+  if (!token) {
+    return false;
+  }
+
   if (isTokenExpired(token)) {
     // Clear user data from store
     clearUser();

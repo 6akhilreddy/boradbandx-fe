@@ -27,14 +27,12 @@ const Login = () => {
   useEffect(() => {
     const isAuthenticated = !!(user && token);
     if (isAuthenticated && user) {
-      console.log("User already authenticated, redirecting...", user.roleCode);
       const dashboardRoute = getDashboardRoute(user.roleCode);
       navigate(dashboardRoute, { replace: true });
     }
   }, [user, token, navigate]);
 
   const getDashboardRoute = (roleCode) => {
-    console.log("Getting dashboard route for role:", roleCode);
     switch (roleCode) {
       case "SUPER_ADMIN":
         return ROUTES.SUPER_ADMIN_DASHBOARD;
@@ -43,7 +41,6 @@ const Login = () => {
       case "AGENT":
         return ROUTES.AGENT_DASHBOARD;
       default:
-        console.warn("Unknown role code:", roleCode, "defaulting to admin dashboard");
         return ROUTES.ADMIN_DASHBOARD;
     }
   };
@@ -51,19 +48,15 @@ const Login = () => {
   const onSubmit = async (data) => {
     setApiError("");
     try {
-      console.log("Attempting login with:", data.phone);
       const response = await login(data.phone, data.password);
-      console.log("Login response:", response);
       
       // Set user data with role and permission information
       setUser(response.user, response.token);
       
       // Redirect based on user role
       const dashboardRoute = getDashboardRoute(response.user.roleCode);
-      console.log("Redirecting to:", dashboardRoute);
       navigate(dashboardRoute, { replace: true });
     } catch (error) {
-      console.error("Login error:", error);
       const errorMessage =
         error.response?.data?.message ||
         "Something went wrong. Please try again.";
