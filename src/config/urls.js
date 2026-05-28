@@ -1,5 +1,9 @@
-export const BASE_URL = "https://broadbandx-be.vercel.app/api";
-// export const BASE_URL = "http://localhost:3000/api";
+export const BASE_URL =
+  typeof process !== "undefined" &&
+  process.env &&
+  process.env.ENVIRONMENT === "dev"
+    ? "https://broadbandx-be.vercel.app/api"
+    : "http://localhost:3000/api";
 export const URLS = {
   AUTH: "/auth",
   LOGIN: "/auth/login",
@@ -8,6 +12,7 @@ export const URLS = {
   ADMINS_COMPANY: "/admins/company",
   ADMINS: "/admins",
   AGENTS: "/agents",
+  SUPERVISORS: "/supervisors",
   CUSTOMERS: "/customers",
   AREAS: "/areas",
   SERVICES: "/services",

@@ -3,6 +3,9 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import Layout from "../components/Layout";
 import useAgentStore from "../store/agentStore";
+import useUserStore from "../store/userStore";
+import { loginAsAgent } from "../api/authApi";
+import routes from "../config/routes";
 import Spinner from "../components/Spinner";
 import useApiLoading from "../hooks/useApiLoading";
 import Toast from "../components/Toast";
@@ -65,6 +68,9 @@ const AgentDetail = () => {
     clearError,
   } = useAgentStore();
   const apiLoading = useApiLoading();
+  const canManageAgents = useUserStore((s) => s.hasPermission("agent.manage"));
+  const isSupervisorUser = useUserStore((s) => s.isSupervisor);
+  const setUser = useUserStore((s) => s.setUser);
 
   const [paymentHistory, setPaymentHistory] = useState([]);
   const [paymentPagination, setPaymentPagination] = useState(null);
@@ -326,6 +332,24 @@ const AgentDetail = () => {
     setPageIndex(1);
   };
 
+  const handleLoginAsAgent = async () => {
+    setButtonLoading(true);
+    try {
+      const response = await loginAsAgent(id);
+      setUser(response.user, response.token);
+      await new Promise((r) => setTimeout(r, 100));
+      navigate(routes.AGENT_DASHBOARD, { replace: true });
+    } catch (error) {
+      setToast({
+        show: true,
+        type: "error",
+        message: error.response?.data?.message || "Failed to login as agent",
+      });
+    } finally {
+      setButtonLoading(false);
+    }
+  };
+
   const openEditModal = () => {
     if (currentAgent) {
       setValue("name", currentAgent.name || "");
@@ -443,16 +467,29 @@ const AgentDetail = () => {
             <span className={`px-3 py-1 text-sm font-semibold rounded-full ${badge.class}`}>
               {badge.text}
             </span>
-            <button
-              onClick={openEditModal}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg shadow-md
-                         bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500
-                         hover:from-purple-600 hover:to-cyan-600
-                         transition-transform hover:scale-[1.02] text-white cursor-pointer"
-            >
-              <Edit className="w-4 h-4" />
-              Edit Agent
-            </button>
+            {(isSupervisorUser() || canManageAgents) && (
+              <button
+                type="button"
+                onClick={handleLoginAsAgent}
+                disabled={buttonLoading}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg shadow-md bg-green-600 hover:bg-green-700 text-white cursor-pointer disabled:opacity-50"
+              >
+                Login as Agent
+              </button>
+            )}
+            {canManageAgents && (
+              <button
+                type="button"
+                onClick={openEditModal}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg shadow-md
+                           bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500
+                           hover:from-purple-600 hover:to-cyan-600
+                           transition-transform hover:scale-[1.02] text-white cursor-pointer"
+              >
+                <Edit className="w-4 h-4" />
+                Edit Agent
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -854,20 +891,23 @@ const AgentDetail = () => {
         <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-900">Agent Area</h3>
-            <button
-              onClick={handleSaveAreas}
-              disabled={savingAreasPermissions || areasPermissionsLoading}
-              className="px-4 py-2 rounded-lg text-white shadow-md bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500 hover:from-purple-600 hover:to-cyan-600 transition-transform hover:scale-[1.02] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-            >
-              {savingAreasPermissions ? (
-                <span className="flex items-center gap-2">
-                  <Spinner loadingTxt="Saving..." size="small" />
-                  Saving...
-                </span>
-              ) : (
-                "Update Areas"
-              )}
-            </button>
+            {canManageAgents && (
+              <button
+                type="button"
+                onClick={handleSaveAreas}
+                disabled={savingAreasPermissions || areasPermissionsLoading}
+                className="px-4 py-2 rounded-lg text-white shadow-md bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500 hover:from-purple-600 hover:to-cyan-600 transition-transform hover:scale-[1.02] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+              >
+                {savingAreasPermissions ? (
+                  <span className="flex items-center gap-2">
+                    <Spinner loadingTxt="Saving..." size="small" />
+                    Saving...
+                  </span>
+                ) : (
+                  "Update Areas"
+                )}
+              </button>
+            )}
           </div>
           {areasPermissionsLoading ? (
             <div className="flex items-center justify-center py-8">
@@ -884,6 +924,7 @@ const AgentDetail = () => {
                     allAreas.every(area => assignedAreas.some(id => Number(id) === Number(area.id)))
                   }
                   onChange={handleSelectAllAreas}
+                  disabled={!canManageAgents}
                   className="w-5 h-5 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500 cursor-pointer"
                 />
                 <span className="text-sm font-medium text-gray-900">Add All Area</span>
@@ -906,6 +947,7 @@ const AgentDetail = () => {
                       type="checkbox"
                       checked={isChecked}
                       onChange={() => handleAreaToggle(areaId)}
+                      disabled={!canManageAgents}
                       className="w-5 h-5 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500 cursor-pointer"
                     />
                     <span className={`text-sm ${isChecked ? "text-emerald-900 font-medium" : "text-gray-700"}`}>
@@ -926,20 +968,23 @@ const AgentDetail = () => {
         <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-900">Agent Permission</h3>
-            <button
-              onClick={handleSavePermissions}
-              disabled={savingAreasPermissions || areasPermissionsLoading}
-              className="px-4 py-2 rounded-lg text-white shadow-md bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500 hover:from-purple-600 hover:to-cyan-600 transition-transform hover:scale-[1.02] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-            >
-              {savingAreasPermissions ? (
-                <span className="flex items-center gap-2">
-                  <Spinner loadingTxt="Saving..." size="small" />
-                  Saving...
-                </span>
-              ) : (
-                "Update Permissions"
-              )}
-            </button>
+            {canManageAgents && (
+              <button
+                type="button"
+                onClick={handleSavePermissions}
+                disabled={savingAreasPermissions || areasPermissionsLoading}
+                className="px-4 py-2 rounded-lg text-white shadow-md bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500 hover:from-purple-600 hover:to-cyan-600 transition-transform hover:scale-[1.02] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+              >
+                {savingAreasPermissions ? (
+                  <span className="flex items-center gap-2">
+                    <Spinner loadingTxt="Saving..." size="small" />
+                    Saving...
+                  </span>
+                ) : (
+                  "Update Permissions"
+                )}
+              </button>
+            )}
           </div>
           {areasPermissionsLoading ? (
             <div className="flex items-center justify-center py-8">
@@ -956,6 +1001,7 @@ const AgentDetail = () => {
                     type="checkbox"
                     checked={agentPermissions.includes(permission.code)}
                     onChange={() => handlePermissionToggle(permission.code)}
+                    disabled={!canManageAgents}
                     className="w-5 h-5 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500 cursor-pointer"
                   />
                   <span className="text-sm text-gray-700">{permission.label}</span>

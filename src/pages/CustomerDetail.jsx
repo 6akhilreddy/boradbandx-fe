@@ -46,6 +46,9 @@ import {
   renewSubscription,
   updateCustomer,
   generateBill,
+  listCustomerDocuments,
+  uploadCustomerDocuments,
+  deleteCustomerDocument,
 } from "../api/customerApi";
 import { getPlans } from "../api/planApi";
 import axiosInstance from "../api/axiosInstance";
@@ -174,6 +177,13 @@ const CustomerDetail = () => {
   const [invoiceDetails, setInvoiceDetails] = useState(null);
   const [selectedPaymentDetails, setSelectedPaymentDetails] = useState(null);
   const [toast, setToast] = useState({ show: false, type: "success", message: "" });
+  const [customerDocuments, setCustomerDocuments] = useState([]);
+  const [documentsLoading, setDocumentsLoading] = useState(false);
+  const [showUploadDocModal, setShowUploadDocModal] = useState(false);
+  const [docPendingFile, setDocPendingFile] = useState(null);
+  const [docPendingName, setDocPendingName] = useState("");
+  const [docPreviewUrl, setDocPreviewUrl] = useState(null);
+  const [docFilePickerKey, setDocFilePickerKey] = useState(0);
 
   const {
     currentCustomer,
@@ -194,6 +204,25 @@ const CustomerDetail = () => {
       clearCurrentCustomer();
     };
   }, [id]);
+
+  const loadCustomerDocuments = async () => {
+    try {
+      setDocumentsLoading(true);
+      const res = await listCustomerDocuments(id);
+      setCustomerDocuments(res?.data || []);
+    } catch (e) {
+      console.error("Failed to load documents:", e);
+      setCustomerDocuments([]);
+    } finally {
+      setDocumentsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (id && activeSection === "documents") {
+      loadCustomerDocuments();
+    }
+  }, [id, activeSection]);
 
   // Sync hardware form with current customer
   useEffect(() => {
@@ -454,13 +483,16 @@ const CustomerDetail = () => {
     
     // Add selected plans as items
     selectedPlans.forEach((plan) => {
+      const qty = plan.quantity || 1;
+      const unitPrice = plan.monthlyPrice || 0;
       items.push({
         name: plan.name,
-        quantity: 1,
-        unitPrice: plan.monthlyPrice || 0,
-        totalAmount: plan.monthlyPrice || 0,
+        quantity: qty,
+        unitPrice,
+        totalAmount: unitPrice * qty,
         itemType: "INTERNET_SERVICE",
         editable: true,
+        planId: plan.id,
       });
     });
     
@@ -498,6 +530,7 @@ const CustomerDetail = () => {
             name: sub.plan.name,
             monthlyPrice: price,
             code: sub.plan.code,
+            quantity: sub.quantity || 1,
           };
         });
       // Update selectedPlans so they show in the popup
@@ -523,15 +556,19 @@ const CustomerDetail = () => {
     if (plansToUse.length > 0) {
       items = plansToUse
         .filter(plan => plan.monthlyPrice > 0) // Only include plans with valid prices
-        .map((plan) => ({
-          name: plan.name,
-          quantity: 1,
-          unitPrice: plan.monthlyPrice || 0,
-          totalAmount: plan.monthlyPrice || 0,
-          itemType: "INTERNET_SERVICE",
-          editable: true,
-          planId: plan.id,
-        }));
+        .map((plan) => {
+          const qty = plan.quantity || 1;
+          const unitPrice = plan.monthlyPrice || 0;
+          return {
+            name: plan.name,
+            quantity: qty,
+            unitPrice,
+            totalAmount: unitPrice * qty,
+            itemType: "INTERNET_SERVICE",
+            editable: true,
+            planId: plan.id,
+          };
+        });
       
       // If no valid plans found, show error
       if (items.length === 0) {
@@ -849,7 +886,7 @@ const CustomerDetail = () => {
     { id: "hardware-details", label: "Hardware Details", icon: Monitor },
     { id: "customer-follow-up", label: "Customer Follow Up", icon: Calendar },
     { id: "customer-edit", label: "Customer Edit", icon: User },
-    { id: "upload-documents", label: "Upload Documents", icon: Upload },
+    { id: "documents", label: "Documents", icon: Upload },
   ];
 
   const renderMainContent = () => {
@@ -1919,66 +1956,258 @@ const CustomerDetail = () => {
           </div>
         );
 
-      case "upload-documents":
+      case "documents":
         return (
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-            <h2 className="text-xl font-semibold text-gray-900 mb-6">
-              Upload Documents
-            </h2>
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">
-                  Document Type
-                </label>
-                <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                  <option value="">Select document type</option>
-                  <option value="id-proof">ID Proof</option>
-                  <option value="address-proof">Address Proof</option>
-                  <option value="agreement">Agreement</option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">
-                  Upload File
-                </label>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                  <Upload className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-                  <p className="text-sm text-gray-600 mb-2">
-                    Click to upload or drag and drop
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    PDF, PNG, JPG up to 10MB
-                  </p>
-                  <input
-                    type="file"
-                    className="hidden"
-                    id="document-upload"
-                    accept=".pdf,.png,.jpg,.jpeg"
-                  />
-                  <label
-                    htmlFor="document-upload"
-                    className="mt-4 inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
-                  >
-                    Choose File
-                  </label>
-                </div>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">
-                  Description
-                </label>
-                <textarea
-                  rows="3"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Enter document description..."
-                />
-              </div>
-              <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold text-gray-900">Documents</h2>
+              <button
+                type="button"
+                onClick={() => setShowUploadDocModal(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium cursor-pointer"
+              >
                 <Upload className="w-4 h-4" />
-                Upload Document
+                Upload
               </button>
             </div>
+
+            {documentsLoading ? (
+              <div className="py-10 text-center text-gray-500">Loading...</div>
+            ) : customerDocuments.length === 0 ? (
+              <div className="py-10 text-center text-gray-500">
+                No documents uploaded yet.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {customerDocuments.map((doc) => {
+                  const name = doc.displayName || doc.originalName;
+                  const isImage =
+                    doc.mimeType && doc.mimeType.startsWith("image/");
+                  const fileUrl = `${axiosInstance.defaults.baseURL?.replace(
+                    "/api",
+                    ""
+                  )}${doc.url}`;
+                  return (
+                    <div
+                      key={doc.id}
+                      className="border border-gray-200 rounded-lg overflow-hidden bg-white"
+                    >
+                      <div className="h-40 bg-gray-50 flex items-center justify-center">
+                        {isImage ? (
+                          <img
+                            src={fileUrl}
+                            alt={name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="text-gray-500 text-sm px-4 text-center">
+                            {doc.originalName}
+                          </div>
+                        )}
+                      </div>
+                      <div className="p-3">
+                        <p className="font-medium text-gray-900 text-sm truncate">
+                          {name}
+                        </p>
+                      <div className="flex items-center justify-between mt-2">
+                        <a
+                          href={fileUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 text-sm"
+                        >
+                          <Download className="w-4 h-4" />
+                          View / Download
+                        </a>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setConfirmAlert({
+                              show: true,
+                              title: "Delete Document",
+                              message:
+                                "Are you sure you want to delete this document? This action cannot be undone.",
+                              type: "danger",
+                              onConfirm: async () => {
+                                try {
+                                  await deleteCustomerDocument(id, doc.id);
+                                  setToast({
+                                    show: true,
+                                    type: "success",
+                                    message: "Document deleted",
+                                  });
+                                  await loadCustomerDocuments();
+                                } catch (e) {
+                                  console.error(e);
+                                  setToast({
+                                    show: true,
+                                    type: "error",
+                                    message:
+                                      e.response?.data?.error ||
+                                      "Failed to delete document",
+                                  });
+                                } finally {
+                                  setConfirmAlert((prev) => ({
+                                    ...prev,
+                                    show: false,
+                                  }));
+                                }
+                              },
+                            });
+                          }}
+                          className="p-2 rounded hover:bg-red-50 text-red-600 hover:text-red-700 cursor-pointer"
+                          aria-label="Delete document"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {showUploadDocModal && (
+              <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+                <div className="w-full max-w-lg bg-white rounded-xl shadow-lg border border-gray-200">
+                  <div className="flex items-center justify-between p-4 border-b border-gray-200">
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      Upload Document
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowUploadDocModal(false);
+                        setDocPendingFile(null);
+                        setDocPendingName("");
+                        if (docPreviewUrl) URL.revokeObjectURL(docPreviewUrl);
+                        setDocPreviewUrl(null);
+                        setDocFilePickerKey((k) => k + 1);
+                      }}
+                      className="p-2 rounded hover:bg-gray-100 cursor-pointer"
+                      aria-label="Close"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  <div className="p-4 space-y-4">
+                    <div>
+                      <label className="text-sm font-medium text-gray-700 mb-1 block">
+                        Choose File
+                      </label>
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            document
+                              .getElementById("customer-doc-upload-input")
+                              ?.click()
+                          }
+                          className="shrink-0 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 cursor-pointer"
+                        >
+                          Choose File
+                        </button>
+                        <input
+                          key={docFilePickerKey}
+                          id="customer-doc-upload-input"
+                          type="file"
+                          accept="image/*,.pdf,.doc,.docx"
+                          className="hidden"
+                          onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            if (!f) return;
+                            setDocPendingFile(f);
+                            const url = URL.createObjectURL(f);
+                            if (docPreviewUrl) URL.revokeObjectURL(docPreviewUrl);
+                            setDocPreviewUrl(url);
+                          }}
+                        />
+                        <input
+                          type="text"
+                          readOnly
+                          value={docPendingFile?.name || ""}
+                          placeholder="No file chosen"
+                          className="flex-1 px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg text-sm"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700 mb-1 block">
+                        File Name
+                      </label>
+                      <input
+                        type="text"
+                        value={docPendingName}
+                        onChange={(e) => setDocPendingName(e.target.value)}
+                        placeholder="e.g. Aadhar card"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    {docPreviewUrl && docPendingFile?.type?.startsWith("image/") && (
+                      <div className="border border-gray-200 rounded-lg overflow-hidden">
+                        <img
+                          src={docPreviewUrl}
+                          alt="Preview"
+                          className="w-full h-56 object-contain bg-gray-50"
+                        />
+                      </div>
+                    )}
+
+                    <div className="flex justify-end gap-2 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowUploadDocModal(false)}
+                        className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        disabled={!docPendingFile}
+                        onClick={async () => {
+                          try {
+                            if (!docPendingFile) return;
+                            const fd = new FormData();
+                            fd.append("files", docPendingFile);
+                            fd.append(
+                              "fileNames",
+                              docPendingName.trim() || docPendingFile.name
+                            );
+                            await uploadCustomerDocuments(id, fd);
+                            setToast({
+                              show: true,
+                              type: "success",
+                              message: "Document uploaded successfully",
+                            });
+                            setShowUploadDocModal(false);
+                            setDocPendingFile(null);
+                            setDocPendingName("");
+                            if (docPreviewUrl) URL.revokeObjectURL(docPreviewUrl);
+                            setDocPreviewUrl(null);
+                            await loadCustomerDocuments();
+                          } catch (e) {
+                            console.error(e);
+                            setToast({
+                              show: true,
+                              type: "error",
+                              message:
+                                e.response?.data?.error ||
+                                "Failed to upload document",
+                            });
+                          }
+                        }}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                      >
+                        Upload
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         );
 

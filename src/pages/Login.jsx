@@ -40,6 +40,8 @@ const Login = () => {
         return ROUTES.ADMIN_DASHBOARD;
       case "AGENT":
         return ROUTES.AGENT_DASHBOARD;
+      case "SUPERVISOR":
+        return ROUTES.SUPERVISOR_DASHBOARD;
       default:
         return ROUTES.ADMIN_DASHBOARD;
     }

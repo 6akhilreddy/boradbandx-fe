@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import Layout from "../components/Layout";
@@ -9,15 +9,42 @@ import usePlanStore from "../store/planStore";
 import useAreaStore from "../store/areaStore";
 import useUserStore from "../store/userStore";
 import Spinner from "../components/Spinner";
-import { ArrowLeft, ArrowRight, Check } from "lucide-react";
-import DatePicker from "../components/DatePicker";
+import { ArrowLeft, ArrowRight, Check, Plus, X } from "lucide-react";
+import FormRow from "../components/customer/FormRow";
+import CustomerGeneralTab from "../components/customer/CustomerGeneralTab";
+import CustomerBillingTab from "../components/customer/CustomerBillingTab";
+import CustomerPlansTab from "../components/customer/CustomerPlansTab";
+import { getNextBillingNumber } from "../api/customerApi";
+import { uploadCustomerDocuments } from "../api/customerApi";
+
+const TABS = [
+  { id: 1, title: "General Details" },
+  { id: 2, title: "Hardware Details" },
+  { id: 3, title: "Upload Documents" },
+  { id: 4, title: "Billing Details" },
+  { id: 5, title: "Plans" },
+];
+
+const inputClass =
+  "w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent";
 
 const CustomerAdd = () => {
   const navigate = useNavigate();
-  const [currentStep, setCurrentStep] = useState(1);
-
+  const [activeTab, setActiveTab] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  const [documents, setDocuments] = useState([]);
+  const [pendingFile, setPendingFile] = useState(null);
+  const [pendingFileName, setPendingFileName] = useState("");
+  const fileInputRef = useRef(null);
+  const documentsRef = useRef([]);
+
+  const [selectedPlans, setSelectedPlans] = useState([]);
+  const [planTab, setPlanTab] = useState("plans");
+  const [fixedBillAmount, setFixedBillAmount] = useState("");
+  const [nextBillingNumber, setNextBillingNumber] = useState(null);
+  const [billingNumberLoading, setBillingNumberLoading] = useState(true);
 
   const { addCustomer } = useCustomerStore();
   const { agents, fetchAgents } = useAgentStore();
@@ -26,32 +53,17 @@ const CustomerAdd = () => {
   const { user } = useUserStore();
   const apiLoading = useApiLoading();
 
-  // Helper function to format date for display
-  const formatDateForDisplay = (dateString) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-GB'); // dd/mm/yyyy format
-  };
-
-  // Handle plan selection to auto-fill agreed monthly price
-  const handlePlanChange = (planId) => {
-    const selectedPlan = plans.find(plan => plan.id === parseInt(planId));
-    if (selectedPlan) {
-      setValue("agreedMonthlyPrice", selectedPlan.monthlyPrice);
-    }
-  };
+  const today = new Date().toISOString().split("T")[0];
 
   const {
     register,
     handleSubmit,
     watch,
     setValue,
-    formState: { errors, isValid },
-    trigger,
+    formState: { errors },
   } = useForm({
     mode: "onChange",
     defaultValues: {
-      // Customer Details
       fullName: "",
       phone: "",
       phoneSecondary: "",
@@ -60,114 +72,230 @@ const CustomerAdd = () => {
       areaId: "",
       customerCode: "",
       billingName: "",
+      latitude: "",
+      longitude: "",
       assignedAgentId: user?.id || "",
-      installationDate: new Date().toISOString().split('T')[0],
+      installationDate: today,
       securityDeposit: 0,
       gstNumber: "",
-      advance: 0,
       remarks: "",
-      
-      // Hardware Details
       deviceType: "",
       macAddress: "",
       ipAddress: "",
-      
-      // Subscription Details
-      planId: "",
-      startDate: new Date().toISOString().split('T')[0],
-      agreedMonthlyPrice: 0,
-      billingType: "PREPAID",
+      membershipNumber: "",
+      billingStartDate: today,
+      openingBalance: 0,
+      openingBalanceType: "OUTSTANDING",
+      billingType: "POSTPAID",
       billingCycle: "MONTHLY",
       billingCycleValue: 1,
-      additionalCharge: 0,
-      discount: 0,
-      status: "ACTIVE",
+      monthlyAdditionalCharge: 0,
+      monthlyDiscount: 0,
+      chargeDiscountMode: "CHARGE",
+      gstType: "NONE",
+      fixedBillAmount: "",
     },
   });
 
-  // Fetch required data on component mount
+  const watchedValues = watch();
+
+  useEffect(() => {
+    if (user?.id) setValue("assignedAgentId", String(user.id));
+    setValue("installationDate", today);
+    setValue("billingStartDate", today);
+  }, [user?.id, setValue, today]);
+
+  const groupedPlanLines = () => {
+    const map = new Map();
+    for (const p of selectedPlans) {
+      const id = p.id;
+      if (map.has(id)) {
+        map.get(id).quantity += 1;
+      } else {
+        map.set(id, {
+          planId: id,
+          quantity: 1,
+          agreedMonthlyPrice: p.monthlyPrice,
+        });
+      }
+    }
+    return [...map.values()];
+  };
+
+  const canCreateCustomer = () => {
+    const { fullName, phone, areaId, billingStartDate } = watchedValues;
+    const phoneValid =
+      !phone || phone.trim() === "" || /^[0-9]{10}$/.test(phone);
+    const hasPlans = selectedPlans.length > 0;
+    const hasFixed =
+      planTab === "fixed" && parseFloat(fixedBillAmount) > 0;
+    return (
+      fullName?.trim() &&
+      phoneValid &&
+      areaId &&
+      billingStartDate &&
+      (hasPlans || hasFixed)
+    );
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        await Promise.all([
+        setBillingNumberLoading(true);
+        const [, , , billingRes] = await Promise.all([
           fetchAgents(),
           fetchPlans(),
           fetchAreas(),
+          getNextBillingNumber().catch(() => ({ billingNumber: null })),
         ]);
-      } catch (err) {
+        setNextBillingNumber(billingRes?.billingNumber ?? null);
+      } catch {
         setError("Failed to load form data");
       } finally {
         setLoading(false);
+        setBillingNumberLoading(false);
       }
     };
-
     fetchData();
   }, [fetchAgents, fetchPlans, fetchAreas]);
 
+  useEffect(() => {
+    documentsRef.current = documents;
+  }, [documents]);
 
+  useEffect(() => {
+    return () => {
+      documentsRef.current.forEach((doc) => {
+        if (doc.previewUrl) URL.revokeObjectURL(doc.previewUrl);
+      });
+    };
+  }, []);
 
-  const steps = [
-    { id: 1, title: "Customer Details" },
-    { id: 2, title: "Hardware Details" },
-    { id: 3, title: "Subscription Details" },
-  ];
-
-  const nextStep = async () => {
-    const isStepValid = await trigger();
-    if (isStepValid && currentStep < 3) {
-      setCurrentStep(currentStep + 1);
-    }
+  const goToPrevTab = () => {
+    if (activeTab > 1) setActiveTab(activeTab - 1);
   };
 
-  const prevStep = () => {
-    if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
-    }
+  const goToNextTab = () => {
+    if (activeTab < TABS.length) setActiveTab(activeTab + 1);
+  };
+
+  const handleFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (file) setPendingFile(file);
+    e.target.value = "";
+  };
+
+  const handleAddDocument = () => {
+    if (!pendingFile) return;
+    const displayName = pendingFileName.trim() || pendingFile.name;
+    const previewUrl = URL.createObjectURL(pendingFile);
+    setDocuments((prev) => [
+      ...prev,
+      {
+        id: crypto.randomUUID(),
+        file: pendingFile,
+        fileName: displayName,
+        previewUrl,
+        isImage: pendingFile.type.startsWith("image/"),
+      },
+    ]);
+    setPendingFile(null);
+    setPendingFileName("");
+  };
+
+  const handleRemoveDocument = (id) => {
+    setDocuments((prev) => {
+      const doc = prev.find((d) => d.id === id);
+      if (doc?.previewUrl) URL.revokeObjectURL(doc.previewUrl);
+      return prev.filter((d) => d.id !== id);
+    });
+  };
+
+  const handleAddPlan = (plan, qty) => {
+    const entries = Array.from({ length: qty }, () => ({ ...plan }));
+    setSelectedPlans((prev) => [...prev, ...entries]);
+    setPlanTab("plans");
+    setFixedBillAmount("");
+    setValue("fixedBillAmount", "");
+  };
+
+  const handleRemovePlan = (planId) => {
+    setSelectedPlans((prev) => {
+      const idx = prev.findIndex((p) => p.id === planId);
+      if (idx === -1) return prev;
+      return [...prev.slice(0, idx), ...prev.slice(idx + 1)];
+    });
   };
 
   const onSubmit = async (data) => {
+    if (!canCreateCustomer()) return;
+
     try {
       setLoading(true);
       setError(null);
 
+      const planLines = groupedPlanLines();
+      const fixed =
+        planTab === "fixed" ? parseFloat(fixedBillAmount) || 0 : null;
+
       const customerData = {
         customer: {
           fullName: data.fullName,
-          phone: data.phone,
-          phoneSecondary: data.phoneSecondary,
-          email: data.email,
+          phone: data.phone?.trim() || null,
+          phoneSecondary: data.phoneSecondary || null,
+          email: data.email || null,
           address: data.address,
-          areaId: parseInt(data.areaId),
+          areaId: parseInt(data.areaId, 10),
           customerCode: data.customerCode,
           billingName: data.billingName,
-          assignedAgentId: data.assignedAgentId ? parseInt(data.assignedAgentId) : null,
+          latitude: data.latitude,
+          longitude: data.longitude,
+          assignedAgentId: data.assignedAgentId
+            ? parseInt(data.assignedAgentId, 10)
+            : null,
           installationDate: data.installationDate,
-          securityDeposit: parseFloat(data.securityDeposit),
+          securityDeposit: parseFloat(data.securityDeposit) || 0,
           gstNumber: data.gstNumber,
-          advance: parseInt(data.advance),
           remarks: data.remarks,
           createdBy: user.id,
+          billingStartDate: data.billingStartDate,
+          openingBalance: parseFloat(data.openingBalance) || 0,
+          openingBalanceType: data.openingBalanceType,
+          billingType: data.billingType,
+          billingCycle: data.billingCycle,
+          billingCycleValue: parseInt(data.billingCycleValue, 10) || 1,
+          monthlyAdditionalCharge:
+            data.chargeDiscountMode === "DISCOUNT"
+              ? 0
+              : parseFloat(data.monthlyAdditionalCharge) || 0,
+          monthlyDiscount:
+            data.chargeDiscountMode === "DISCOUNT"
+              ? parseFloat(data.monthlyDiscount) || 0
+              : 0,
+          gstType: data.gstType,
+          fixedBillAmount: fixed,
         },
         hardware: {
           deviceType: data.deviceType,
           macAddress: data.macAddress,
           ipAddress: data.ipAddress,
+          membershipNumber: data.membershipNumber,
         },
-        subscription: {
-          planId: parseInt(data.planId),
-          startDate: data.startDate,
-          agreedMonthlyPrice: parseFloat(data.agreedMonthlyPrice),
-          billingType: data.billingType,
-          billingCycle: data.billingCycle,
-          billingCycleValue: parseInt(data.billingCycleValue),
-          additionalCharge: parseFloat(data.additionalCharge),
-          discount: parseFloat(data.discount),
-          status: data.status,
-        },
+        planLines,
       };
 
-      await addCustomer(customerData);
+      const created = await addCustomer(customerData);
+
+      // Upload documents (if any) after customer is created
+      if (documents.length > 0 && created?.id) {
+        const formData = new FormData();
+        documents.forEach((d) => {
+          formData.append("files", d.file);
+          formData.append("fileNames", d.fileName);
+        });
+        await uploadCustomerDocuments(created.id, formData);
+      }
       navigate("/customers");
     } catch (err) {
       setError(err.message || "Failed to create customer");
@@ -188,10 +316,10 @@ const CustomerAdd = () => {
 
   return (
     <Layout>
-      <div className="max-w-7xl mx-auto p-6">
-        {/* Header */}
-        <div className="mb-8">
+      <div className="max-w-7xl mx-auto p-4">
+        <div className="mb-4">
           <button
+            type="button"
             onClick={() => navigate("/customers")}
             className="flex items-center gap-2 text-white px-4 py-2 rounded-lg shadow-md
                        bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500
@@ -201,496 +329,244 @@ const CustomerAdd = () => {
             <ArrowLeft className="w-4 h-4" />
             Back to Customers
           </button>
-          <h1 className="text-3xl font-bold text-gray-900 mt-4">Add New Customer</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mt-4">Add Customer</h1>
         </div>
 
-        {/* Progress Indicator */}
-        <div className="mb-8">
-          <div className="flex items-center justify-center max-w-xs sm:max-w-3xl mx-auto">
-            {steps.map((step, index) => (
-              <div key={step.id} className="flex items-center">
-                <div
-                  className={`flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 z-10 relative ${
-                    currentStep >= step.id
-                      ? "bg-blue-600 border-blue-600 text-white"
-                      : "border-gray-300 text-gray-500 bg-white"
-                  }`}
-                >
-                  {currentStep > step.id ? (
-                    <Check className="w-4 h-4 sm:w-5 sm:h-5" />
-                  ) : (
-                    <span className="text-sm sm:text-base">{step.id}</span>
-                  )}
-                </div>
-                <div className="ml-2 sm:ml-3 hidden sm:block">
-                  <p
-                    className={`text-sm font-medium ${
-                      currentStep >= step.id ? "text-blue-600" : "text-gray-500"
-                    }`}
-                  >
-                    {step.title}
-                  </p>
-                </div>
-                {index < steps.length - 1 && (
-                  <div className="w-8 sm:w-32 md:w-40 h-0.5 mx-2 sm:mx-4 md:mx-6 relative">
-                    <div
-                      className={`h-full w-full ${
-                        currentStep > step.id ? "bg-blue-600" : "bg-gray-300"
-                      }`}
-                    />
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Error Message */}
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
             <p className="text-red-600">{error}</p>
           </div>
         )}
 
-        {/* Form */}
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
-          {/* Step 1: Customer Details */}
-          {currentStep === 1 && (
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-6">
-                Customer Information
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Full Name *
-                  </label>
-                  <input
-                    type="text"
-                    {...register("fullName", { required: "Full name is required" })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                  {errors.fullName && (
-                    <p className="text-red-500 text-sm mt-1">{errors.fullName.message}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Customer Code
-                  </label>
-                  <input
-                    type="text"
-                    {...register("customerCode")}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Enter customer code"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Billing Name
-                  </label>
-                  <input
-                    type="text"
-                    {...register("billingName")}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Enter billing name"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Phone *
-                  </label>
-                  <input
-                    type="tel"
-                    {...register("phone", { 
-                      required: "Phone is required",
-                      pattern: {
-                        value: /^[0-9]{10}$/,
-                        message: "Phone number must be 10 digits"
-                      }
-                    })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                  {errors.phone && (
-                    <p className="text-red-500 text-sm mt-1">{errors.phone.message}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Secondary Phone
-                  </label>
-                  <input
-                    type="tel"
-                    {...register("phoneSecondary", {
-                      pattern: {
-                        value: /^[0-9]{10}$/,
-                        message: "Phone number must be 10 digits"
-                      }
-                    })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    {...register("email", {
-                      pattern: {
-                        value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                        message: "Invalid email address",
-                      },
-                    })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                  {errors.email && (
-                    <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Area *
-                  </label>
-                  <select
-                    {...register("areaId", { required: "Area is required" })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="">Select Area</option>
-                    {areas.map((area) => (
-                      <option key={area.id} value={area.id}>
-                        {area.areaName}
-                      </option>
-                    ))}
-                  </select>
-                  {errors.areaId && (
-                    <p className="text-red-500 text-sm mt-1">{errors.areaId.message}</p>
-                  )}
-                </div>
-
-
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Assigned Agent
-                  </label>
-                  <select
-                    {...register("assignedAgentId")}
-                    disabled={user?.roleCode === "AGENT"}
-                    defaultValue={user?.id || ""}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
-                  >
-                    <option value="">Select Agent</option>
-                    {user?.roleCode === "ADMIN" && (
-                      <option value={user.id}>
-                        {user.name} (Admin)
-                      </option>
-                    )}
-                    {agents.map((agent) => (
-                      <option key={agent.id} value={agent.id}>
-                        {agent.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <DatePicker
-                    label="Installation Date"
-                    name="installationDate"
-                    register={register}
-                    errors={errors}
-                    placeholder="dd/mm/yyyy"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Security Deposit
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    {...register("securityDeposit", { min: 0 })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    GST Number
-                  </label>
-                  <input
-                    type="text"
-                    {...register("gstNumber")}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Advance Payment
-                  </label>
-                  <input
-                    type="number"
-                    {...register("advance", { min: 0 })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-
-                <div className="col-span-full">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Address
-                  </label>
-                  <textarea
-                    {...register("address")}
-                    rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-
-                <div className="col-span-full">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Remarks
-                  </label>
-                  <textarea
-                    {...register("remarks")}
-                    rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Step 2: Hardware Details */}
-          {currentStep === 2 && (
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-6">
-                Hardware Information
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Device Type
-                  </label>
-                  <input
-                    type="text"
-                    {...register("deviceType")}
-                    placeholder="e.g., Router, Modem, etc."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    MAC Address
-                  </label>
-                  <input
-                    type="text"
-                    {...register("macAddress")}
-                    placeholder="00:1A:2B:3C:4D:5E"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    IP Address
-                  </label>
-                  <input
-                    type="text"
-                    {...register("ipAddress")}
-                    placeholder="192.168.1.1"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Step 3: Subscription Details */}
-          {currentStep === 3 && (
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-6">
-                Subscription Information
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Plan *
-                  </label>
-                  <select
-                    {...register("planId", { required: "Plan is required" })}
-                    onChange={(e) => {
-                      register("planId").onChange(e);
-                      handlePlanChange(e.target.value);
-                    }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="">Select Plan</option>
-                    {plans.map((plan) => (
-                      <option key={plan.id} value={plan.id}>
-                        {plan.name} - ₹{plan.monthlyPrice}
-                      </option>
-                    ))}
-                  </select>
-                  {errors.planId && (
-                    <p className="text-red-500 text-sm mt-1">{errors.planId.message}</p>
-                  )}
-                </div>
-
-                <div>
-                  <DatePicker
-                    label="Start Date"
-                    name="startDate"
-                    register={register}
-                    errors={errors}
-                    required={true}
-                    placeholder="dd/mm/yyyy"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Agreed Monthly Price
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    {...register("agreedMonthlyPrice", { min: 0 })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Billing Type
-                  </label>
-                  <select
-                    {...register("billingType")}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="POSTPAID">Postpaid</option>
-                    <option value="PREPAID">Prepaid</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Billing Cycle
-                  </label>
-                  <select
-                    {...register("billingCycle")}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="MONTHLY">Monthly</option>
-                    <option value="DAILY">Daily</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Billing Cycle Value
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    {...register("billingCycleValue", { min: 1 })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Additional Charge
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    {...register("additionalCharge", { min: 0 })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Discount
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    {...register("discount", { min: 0 })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Status
-                  </label>
-                  <select
-                    {...register("status")}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="ACTIVE">Active</option>
-                    <option value="PAUSED">Paused</option>
-                    <option value="CANCELLED">Cancelled</option>
-                    <option value="CHANGED">Changed</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Navigation Buttons */}
-          <div className="flex justify-between pt-6">
-            <button
-              type="button"
-              onClick={prevStep}
-              disabled={currentStep === 1}
-              className="flex items-center gap-2 px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Previous
-            </button>
-
-            <div className="flex gap-3">
-              {currentStep < 3 ? (
+        <form onSubmit={handleSubmit(onSubmit)}>
+          <div className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
+            <div className="flex flex-wrap gap-1 p-3 border-b border-gray-200 bg-gray-50/50">
+              {TABS.map((tab) => (
                 <button
+                  key={tab.id}
                   type="button"
-                  onClick={nextStep}
-                  className="flex items-center gap-2 px-6 py-2 rounded-lg text-white shadow-md
-                             bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500
-                             hover:from-purple-600 hover:to-cyan-600
-                             transition-transform hover:scale-[1.02] cursor-pointer"
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`px-4 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer ${
+                    activeTab === tab.id
+                      ? "bg-blue-600 text-white shadow-sm"
+                      : "text-gray-700 hover:bg-gray-100"
+                  }`}
                 >
-                  Next
-                  <ArrowRight className="w-4 h-4" />
+                  {tab.title}
                 </button>
-              ) : (
-                loading ? (
-                  <div className="flex items-center gap-2 px-6 py-2 rounded-lg text-white shadow-md">
-                    <Spinner loadingTxt="Creating..." size="small" />
-                    Creating Customer
+              ))}
+            </div>
+
+            <div className="p-6">
+              {activeTab === 1 && (
+                <CustomerGeneralTab
+                  register={register}
+                  errors={errors}
+                  watch={watch}
+                  areas={areas}
+                  agents={agents}
+                  user={user}
+                  nextBillingNumber={nextBillingNumber}
+                  billingNumberLoading={billingNumberLoading}
+                />
+              )}
+
+              {activeTab === 2 && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8">
+                  <FormRow label="ROUTER">
+                    <input
+                      type="text"
+                      {...register("deviceType")}
+                      placeholder="Router"
+                      className={inputClass}
+                    />
+                  </FormRow>
+                  <FormRow label="IP">
+                    <input
+                      type="text"
+                      {...register("ipAddress")}
+                      placeholder="IP address"
+                      className={inputClass}
+                    />
+                  </FormRow>
+                  <FormRow label="MAC">
+                    <input
+                      type="text"
+                      {...register("macAddress")}
+                      placeholder="MAC"
+                      className={inputClass}
+                    />
+                  </FormRow>
+                  <FormRow label="MEMBERSHIP Number">
+                    <input
+                      type="text"
+                      {...register("membershipNumber")}
+                      placeholder="Membership/Account Number"
+                      className={inputClass}
+                    />
+                  </FormRow>
+                </div>
+              )}
+
+              {activeTab === 3 && (
+                <div className="max-w-2xl">
+                  <label className="block text-sm font-medium text-gray-700 mb-4">
+                    Upload Documents :
+                  </label>
+                  <div className="space-y-3 border border-gray-200 rounded-lg p-4">
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="shrink-0 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 cursor-pointer"
+                      >
+                        Choose File
+                      </button>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        className="hidden"
+                        accept="image/*,.pdf,.doc,.docx"
+                        onChange={handleFileSelect}
+                      />
+                      <input
+                        type="text"
+                        readOnly
+                        value={pendingFile?.name || ""}
+                        placeholder="No file chosen"
+                        className="flex-1 px-3 py-2 bg-gray-100 border border-gray-200 rounded-lg text-sm"
+                      />
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <span className="shrink-0 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg flex items-center">
+                        File Name
+                      </span>
+                      <input
+                        type="text"
+                        value={pendingFileName}
+                        onChange={(e) => setPendingFileName(e.target.value)}
+                        placeholder="e.g. Aadhar card"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div className="flex justify-center pt-2">
+                      <button
+                        type="button"
+                        onClick={handleAddDocument}
+                        disabled={!pendingFile}
+                        className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:hover:bg-blue-600 cursor-pointer"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Add
+                      </button>
+                    </div>
+                    {documents.length > 0 && (
+                      <div className="pt-4 mt-4 border-t flex flex-wrap gap-4">
+                        {documents.map((doc) => (
+                          <div key={doc.id} className="relative">
+                            <div className="border-2 border-blue-200 rounded-lg p-2">
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveDocument(doc.id)}
+                                className="absolute -top-2 -right-2 w-6 h-6 bg-gray-700 text-white rounded-full flex items-center justify-center cursor-pointer"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                              {doc.isImage ? (
+                                <img
+                                  src={doc.previewUrl}
+                                  alt={doc.fileName}
+                                  className="w-32 h-32 object-cover rounded"
+                                />
+                              ) : (
+                                <div className="w-32 h-32 flex items-center justify-center bg-gray-100 text-xs text-center px-2">
+                                  {doc.file.name}
+                                </div>
+                              )}
+                            </div>
+                            <p className="text-sm text-blue-600 text-center mt-2 truncate max-w-[140px]">
+                              {doc.fileName}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                ) : (
-                  <button
-                    type="submit"
-                    className="flex items-center gap-2 px-6 py-2 rounded-lg text-white shadow-md bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500 hover:from-purple-600 hover:to-cyan-600 transition-transform hover:scale-[1.02] cursor-pointer"
-                  >
-                    <Check className="w-4 h-4" />
-                    Create Customer
-                  </button>
-                )
+                </div>
+              )}
+
+              {activeTab === 4 && (
+                <CustomerBillingTab
+                  register={register}
+                  watch={watch}
+                  setValue={setValue}
+                  errors={errors}
+                />
+              )}
+
+              {activeTab === 5 && (
+                <CustomerPlansTab
+                  plans={plans}
+                  selectedPlans={selectedPlans}
+                  onAddPlan={handleAddPlan}
+                  onRemovePlan={handleRemovePlan}
+                  onClearPlans={() => setSelectedPlans([])}
+                  fixedBillAmount={fixedBillAmount}
+                  onFixedBillAmountChange={(v) => {
+                    setFixedBillAmount(v);
+                    setValue("fixedBillAmount", v);
+                    if (parseFloat(v) > 0) setSelectedPlans([]);
+                  }}
+                  planTab={planTab}
+                  onPlanTabChange={(tab) => {
+                    setPlanTab(tab);
+                    if (tab === "fixed") setSelectedPlans([]);
+                  }}
+                />
               )}
             </div>
+          </div>
+
+          <div className="flex justify-center items-center gap-4 mt-8">
+            <button
+              type="button"
+              onClick={goToPrevTab}
+              disabled={activeTab === 1}
+              className="flex items-center gap-2 px-8 py-2.5 bg-gray-900 text-white text-sm font-semibold rounded-lg hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              PREV.
+            </button>
+
+            {activeTab < TABS.length ? (
+              <button
+                type="button"
+                onClick={goToNextTab}
+                className="flex items-center gap-2 px-8 py-2.5 bg-gray-900 text-white text-sm font-semibold rounded-lg hover:bg-gray-800 cursor-pointer"
+              >
+                NEXT
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            ) : loading ? (
+              <div className="flex items-center gap-2 px-8 py-2.5 bg-gray-400 text-white text-sm font-semibold rounded-lg">
+                <Spinner loadingTxt="Creating..." size="small" />
+                Creating Customer
+              </div>
+            ) : (
+              <button
+                type="submit"
+                disabled={!canCreateCustomer()}
+                title={
+                  !canCreateCustomer()
+                    ? "Fill required fields and add at least one plan or fixed bill amount"
+                    : undefined
+                }
+                className="flex items-center gap-2 px-8 py-2.5 text-sm font-semibold rounded-lg text-white cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500 hover:from-purple-600 hover:to-cyan-600"
+              >
+                <Check className="w-4 h-4" />
+                Create Customer
+              </button>
+            )}
           </div>
         </form>
       </div>

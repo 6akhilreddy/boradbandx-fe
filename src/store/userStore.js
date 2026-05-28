@@ -18,6 +18,8 @@ const useUserStore = create()(
             companyId: userData.companyId,
             // Store impersonation info if present
             impersonatedBy: userData.impersonatedBy || null,
+            impersonationStack: userData.impersonationStack || [],
+            impersonationRoot: userData.impersonationRoot || null,
           },
           token,
         });
@@ -49,6 +51,7 @@ const useUserStore = create()(
       isSuperAdmin: () => get().hasRole("SUPER_ADMIN"),
       isAdmin: () => get().hasRole("ADMIN"),
       isAgent: () => get().hasRole("AGENT"),
+      isSupervisor: () => get().hasRole("SUPERVISOR"),
 
       // Get user's company ID
       getCompanyId: () => {
@@ -76,10 +79,16 @@ const useUserStore = create()(
       // Get original admin info when impersonating
       getOriginalAdmin: () => {
         const { user } = get();
+        if (user?.impersonationRoot) return user.impersonationRoot;
         if (user && user.impersonatedBy) {
           return user.impersonatedBy;
         }
         return null;
+      },
+
+      getImpersonationParent: () => {
+        const { user } = get();
+        return user?.impersonatedBy || null;
       },
     }),
     {

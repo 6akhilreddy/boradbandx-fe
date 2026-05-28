@@ -22,6 +22,18 @@ export const getCustomers = async (params = {}) => {
   }
 };
 
+export const getNextBillingNumber = async () => {
+  try {
+    const response = await axiosInstance.get(
+      `${URLS.CUSTOMERS}/next-billing-number`
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Get next billing number failed:", error);
+    throw error;
+  }
+};
+
 export const getCustomerById = async (id) => {
   try {
     const response = await axiosInstance.get(`${URLS.CUSTOMERS}/${id}`);
@@ -51,6 +63,44 @@ export const createCustomer = async (data) => {
     return response.data;
   } catch (error) {
     console.error("Create customer failed:", error);
+    throw error;
+  }
+};
+
+export const listCustomerDocuments = async (customerId) => {
+  try {
+    const response = await axiosInstance.get(
+      `${URLS.CUSTOMERS}/${customerId}/documents`
+    );
+    return response.data;
+  } catch (error) {
+    console.error("List customer documents failed:", error);
+    throw error;
+  }
+};
+
+export const uploadCustomerDocuments = async (customerId, formData) => {
+  try {
+    const response = await axiosInstance.post(
+      `${URLS.CUSTOMERS}/${customerId}/documents`,
+      formData,
+      { headers: { "Content-Type": "multipart/form-data" } }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Upload customer documents failed:", error);
+    throw error;
+  }
+};
+
+export const deleteCustomerDocument = async (customerId, docId) => {
+  try {
+    const response = await axiosInstance.delete(
+      `${URLS.CUSTOMERS}/${customerId}/documents/${docId}`
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Delete customer document failed:", error);
     throw error;
   }
 };

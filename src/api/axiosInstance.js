@@ -12,9 +12,11 @@ axiosInstance.interceptors.request.use(
   (config) => {
     // Skip token validation and header for login endpoint (unauthenticated)
     // But NOT for login-as-agent
+    const urlStringEarly = config.url || "";
     if (
-      config.url?.includes("/auth/login") &&
-      !config.url?.includes("login-as-agent")
+      urlStringEarly.includes("/auth/login") &&
+      !urlStringEarly.includes("login-as-agent") &&
+      !urlStringEarly.includes("login-as-supervisor")
     ) {
       return config;
     }
@@ -36,10 +38,12 @@ axiosInstance.interceptors.request.use(
 
     // For authenticated endpoints (including login-as-agent), we need a token
     const urlString = config.url || "";
-    const isLoginAsAgent = urlString.includes("login-as-agent");
-    const isExitImpersonation = urlString.includes("exit-impersonation");
+    const isImpersonationEndpoint =
+      urlString.includes("login-as-agent") ||
+      urlString.includes("login-as-supervisor") ||
+      urlString.includes("exit-impersonation");
 
-    if (isLoginAsAgent || isExitImpersonation) {
+    if (isImpersonationEndpoint) {
       if (!token) {
         return Promise.reject(new Error("No authentication token available"));
       }

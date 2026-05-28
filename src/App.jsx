@@ -7,6 +7,9 @@ import ProtectedRoute, {
   CustomerManageRoute,
   PlanManageRoute,
   AgentManageRoute,
+  AgentsViewRoute,
+  SupervisorsManageRoute,
+  SupervisorRoute,
   CompanyManageRoute,
   ComplaintsRoute
 } from "./components/ProtectedRoute";
@@ -22,6 +25,8 @@ import CustomerDetail from "./pages/CustomerDetail";
 import CustomerEdit from "./pages/CustomerEdit";
 import Plans from "./pages/Plans";
 import Agents from "./pages/Agents";
+import Supervisors from "./pages/Supervisors";
+import SupervisorDashboard from "./pages/SupervisorDashboard";
 import AgentDetail from "./pages/AgentDetail";
 import Collection from "./pages/Collection";
 import Payments from "./pages/Payments";
@@ -49,6 +54,8 @@ const DefaultRedirect = () => {
           ? routes.SUPER_ADMIN_DASHBOARD
           : user?.roleCode === "AGENT"
           ? routes.AGENT_DASHBOARD
+          : user?.roleCode === "SUPERVISOR"
+          ? routes.SUPERVISOR_DASHBOARD
           : routes.ADMIN_DASHBOARD
       }
       replace
@@ -94,6 +101,16 @@ function App() {
             <AgentRoute>
               <AgentDashboard />
             </AgentRoute>
+          }
+        />
+
+        {/* Supervisor Routes */}
+        <Route
+          path={routes.SUPERVISOR_DASHBOARD}
+          element={
+            <SupervisorRoute>
+              <SupervisorDashboard />
+            </SupervisorRoute>
           }
         />
 
@@ -157,21 +174,21 @@ function App() {
           }
         />
 
-        {/* Agent Management Routes (Super Admin Only) */}
+        {/* Agent list/detail — admin (manage) or supervisor (view team) */}
         <Route
           path="/agents"
           element={
-            <AgentManageRoute>
+            <AgentsViewRoute>
               <Agents />
-            </AgentManageRoute>
+            </AgentsViewRoute>
           }
         />
         <Route
           path="/agents/:id"
           element={
-            <AgentManageRoute>
+            <AgentsViewRoute>
               <AgentDetail />
-            </AgentManageRoute>
+            </AgentsViewRoute>
           }
         />
         <Route
@@ -180,6 +197,16 @@ function App() {
             <AgentManageRoute>
               <Agents />
             </AgentManageRoute>
+          }
+        />
+
+        {/* Supervisor management (admin) */}
+        <Route
+          path="/supervisors"
+          element={
+            <SupervisorsManageRoute>
+              <Supervisors />
+            </SupervisorsManageRoute>
           }
         />
 

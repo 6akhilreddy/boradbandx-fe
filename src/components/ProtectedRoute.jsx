@@ -101,6 +101,26 @@ export const AgentRoute = ({ children }) => {
   );
 };
 
+export const SupervisorRoute = ({ children }) => {
+  return (
+    <ProtectedRoute requiredRole="SUPERVISOR" fallbackRoute={ROUTES.UNAUTHORIZED}>
+      {children}
+    </ProtectedRoute>
+  );
+};
+
+export const AgentsViewRoute = ({ children }) => (
+  <ProtectedRoute requiredPermission="agents.view" fallbackRoute={ROUTES.UNAUTHORIZED}>
+    {children}
+  </ProtectedRoute>
+);
+
+export const SupervisorsManageRoute = ({ children }) => (
+  <ProtectedRoute requiredPermission="supervisors.view" fallbackRoute={ROUTES.UNAUTHORIZED}>
+    {children}
+  </ProtectedRoute>
+);
+
 // Permission-based route components
 export const CustomerManageRoute = ({ children }) => (
   <ProtectedRoute requiredPermission="customer.add" fallbackRoute={ROUTES.UNAUTHORIZED}>

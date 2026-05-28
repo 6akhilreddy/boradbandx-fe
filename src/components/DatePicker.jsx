@@ -19,7 +19,17 @@ const DatePicker = ({
   ...props
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(value ? new Date(value) : null);
+  const parseDateValue = (dateStr) => {
+    if (!dateStr) return null;
+    try {
+      const d = new Date(`${String(dateStr).split("T")[0]}T12:00:00`);
+      return Number.isNaN(d.getTime()) ? null : d;
+    } catch {
+      return null;
+    }
+  };
+
+  const [selectedDate, setSelectedDate] = useState(() => parseDateValue(value));
   const [dropdownPosition, setDropdownPosition] = useState({ left: 0, right: 'auto' });
   const containerRef = useRef(null);
   const inputRef = useRef(null);
@@ -27,15 +37,7 @@ const DatePicker = ({
 
   // Update selectedDate when value prop changes
   useEffect(() => {
-    if (value && value !== "") {
-      try {
-        setSelectedDate(new Date(value));
-      } catch (e) {
-        setSelectedDate(null);
-      }
-    } else {
-      setSelectedDate(null);
-    }
+    setSelectedDate(parseDateValue(value));
   }, [value]);
 
   // Calculate dropdown position to prevent overflow

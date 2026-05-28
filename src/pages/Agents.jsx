@@ -8,6 +8,7 @@ import useApiLoading from "../hooks/useApiLoading";
 import Alert from "../components/Alert";
 import { loginAsAgent } from "../api/authApi";
 import useUserStore from "../store/userStore";
+import { fetchSupervisors } from "../api/supervisorApi";
 import routes from "../config/routes";
 import {
   Search,
@@ -31,6 +32,17 @@ const Agents = () => {
     clearError,
   } = useAgentStore();
   const apiLoading = useApiLoading();
+  const isSupervisor = useUserStore((state) => state.isSupervisor);
+  const canManageAgents = useUserStore((state) => state.hasPermission("agent.manage"));
+  const [supervisorOptions, setSupervisorOptions] = useState([]);
+
+  useEffect(() => {
+    if (canManageAgents) {
+      fetchSupervisors()
+        .then(setSupervisorOptions)
+        .catch(() => setSupervisorOptions([]));
+    }
+  }, [canManageAgents]);
 
   // filters
   const [search, setSearch] = useState("");
@@ -111,6 +123,10 @@ const Agents = () => {
     setEditValue("email", agent.email || "");
     setEditValue("phone", agent.phone || "");
     setEditValue("status", agent.isActive ? "ACTIVE" : "INACTIVE");
+    setEditValue(
+      "supervisorId",
+      agent.supervisorId ? String(agent.supervisorId) : ""
+    );
     setShowEditModal(true);
   };
 
@@ -165,19 +181,23 @@ const Agents = () => {
     <Layout>
       {/* Header (stack on mobile) */}
       <div className="mt-2 mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between min-w-0">
-        <h2 className="text-2xl font-bold sm:truncate">Agents</h2>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="w-full sm:w-auto justify-center text-white px-4 py-2 rounded-lg shadow-md
-                     bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500
-                     hover:from-purple-600 hover:to-cyan-600
-                     transition-transform hover:scale-[1.02] text-sm sm:text-base cursor-pointer"
-        >
-          <span className="inline-flex items-center gap-2">
-            <Plus className="w-4 h-4" />
-            Add New Agent
-          </span>
-        </button>
+        <h2 className="text-2xl font-bold sm:truncate">
+          {isSupervisor() ? "My Agents" : "Agents"}
+        </h2>
+        {canManageAgents && (
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="w-full sm:w-auto justify-center text-white px-4 py-2 rounded-lg shadow-md
+                       bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-500
+                       hover:from-purple-600 hover:to-cyan-600
+                       transition-transform hover:scale-[1.02] text-sm sm:text-base cursor-pointer"
+          >
+            <span className="inline-flex items-center gap-2">
+              <Plus className="w-4 h-4" />
+              Add New Agent
+            </span>
+          </button>
+        )}
       </div>
 
       {/* Search & Filters */}

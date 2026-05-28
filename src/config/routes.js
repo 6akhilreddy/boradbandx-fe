@@ -1,6 +1,7 @@
 const routes = {
   ADMIN_DASHBOARD: "/admin",
   AGENT_DASHBOARD: "/agent",
+  SUPERVISOR_DASHBOARD: "/supervisor",
   SUPER_ADMIN_DASHBOARD: "/superadmin",
   LOGIN: "/login",
   UNAUTHORIZED: "/unauthorized",
@@ -12,6 +13,7 @@ const routes = {
   PLAN_DETAIL: "/plans/:id",
   PLAN_EDIT: "/plans/:id/edit",
   AGENTS: "/agents",
+  SUPERVISORS: "/supervisors",
   AGENT_DETAIL: "/agents/:id",
   AGENT_EDIT: "/agents/:id/edit",
   COLLECTION: "/collection",

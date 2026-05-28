@@ -25,27 +25,43 @@ const Sidebar = () => {
   const isSuperAdmin = useUserStore((state) => state.isSuperAdmin);
   const isAdmin = useUserStore((state) => state.isAdmin);
   const isAgent = useUserStore((state) => state.isAgent);
+  const isSupervisor = useUserStore((state) => state.isSupervisor);
   const isImpersonating = useUserStore((state) => state.isImpersonating);
+  const getImpersonationParent = useUserStore((state) => state.getImpersonationParent);
   const navigate = useNavigate();
+
+  const dashboardForRole = (roleCode) => {
+    if (roleCode === "SUPER_ADMIN") return routes.SUPER_ADMIN_DASHBOARD;
+    if (roleCode === "AGENT") return routes.AGENT_DASHBOARD;
+    if (roleCode === "SUPERVISOR") return routes.SUPERVISOR_DASHBOARD;
+    return routes.ADMIN_DASHBOARD;
+  };
 
   const handleExitImpersonation = async () => {
     try {
       const response = await exitImpersonation();
       setUser(response.user, response.token);
-      
-      // Wait a bit to ensure state is persisted to localStorage
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      navigate(routes.ADMIN_DASHBOARD, { replace: true });
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      navigate(dashboardForRole(response.user.roleCode), { replace: true });
     } catch (error) {
       console.error("Failed to exit impersonation:", error);
     }
+  };
+
+  const getExitLabel = () => {
+    const parent = getImpersonationParent();
+    if (parent?.roleCode === "SUPERVISOR") return "Back to Supervisor";
+    if (parent?.roleCode === "ADMIN" || parent?.roleCode === "SUPER_ADMIN") {
+      return "Back to Admin";
+    }
+    return "Go Back";
   };
 
   // Get dashboard route based on user role
   const getDashboardRoute = () => {
     if (isSuperAdmin()) return routes.SUPER_ADMIN_DASHBOARD;
     if (isAgent()) return routes.AGENT_DASHBOARD;
+    if (isSupervisor()) return routes.SUPERVISOR_DASHBOARD;
     return routes.ADMIN_DASHBOARD;
   };
 
@@ -74,12 +90,19 @@ const Sidebar = () => {
       show: hasPermission("plans.view") || hasPermission("plan.manage") 
     },
     
-    // Agent management (Super Admin only)
+    // Agent management / supervisor team view
     { 
-      name: "Agents", 
+      name: isSupervisor() ? "My Agents" : "Agents", 
       path: "/agents", 
       icon: User, 
       show: hasPermission("agents.view") || hasPermission("agent.manage") 
+    },
+
+    { 
+      name: "Supervisors", 
+      path: "/supervisors", 
+      icon: UsersRound, 
+      show: hasPermission("supervisors.view") || hasPermission("supervisor.manage") 
     },
     
     // Company management (Super Admin only)
@@ -171,7 +194,7 @@ const Sidebar = () => {
               className="mt-3 w-full flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium cursor-pointer"
             >
               <ArrowLeft className="w-4 h-4" />
-              Back to Admin
+              {getExitLabel()}
             </button>
           )}
         </div>

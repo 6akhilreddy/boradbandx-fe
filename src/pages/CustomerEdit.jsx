@@ -80,8 +80,18 @@ const CustomerEdit = () => {
       installationDate: new Date().toISOString().split('T')[0],
       securityDeposit: 0,
       gstNumber: "",
-      advance: 0,
       remarks: "",
+      latitude: "",
+      longitude: "",
+      membershipNumber: "",
+      billingStartDate: new Date().toISOString().split("T")[0],
+      openingBalance: 0,
+      openingBalanceType: "OUTSTANDING",
+      monthlyAdditionalCharge: 0,
+      monthlyDiscount: 0,
+      chargeDiscountMode: "CHARGE",
+      gstType: "NONE",
+      fixedBillAmount: "",
       isActive: true,
       
       // Hardware Details
@@ -93,11 +103,9 @@ const CustomerEdit = () => {
       planId: "",
       startDate: new Date().toISOString().split('T')[0],
       agreedMonthlyPrice: 0,
-      billingType: "PREPAID",
+      billingType: "POSTPAID",
       billingCycle: "MONTHLY",
       billingCycleValue: 1,
-      additionalCharge: 0,
-      discount: 0,
       status: "ACTIVE",
     },
   });
@@ -153,8 +161,29 @@ const CustomerEdit = () => {
         installationDate: formatDateForInput(currentCustomer.installationDate),
         securityDeposit: currentCustomer.securityDeposit || 0,
         gstNumber: currentCustomer.gstNumber || "",
-        advance: currentCustomer.advance || 0,
+        latitude: currentCustomer.latitude || "",
+        longitude: currentCustomer.longitude || "",
         remarks: currentCustomer.remarks || "",
+        membershipNumber:
+          currentCustomer.hardware?.membershipNumber ||
+          currentCustomer.CustomerHardwares?.[0]?.membershipNumber ||
+          "",
+        billingStartDate: formatDateForInput(
+          currentCustomer.billingStartDate ||
+            currentCustomer.subscription?.startDate
+        ),
+        openingBalance: currentCustomer.openingBalance || 0,
+        openingBalanceType:
+          currentCustomer.openingBalanceType || "OUTSTANDING",
+        billingType: currentCustomer.billingType || "POSTPAID",
+        billingCycle: currentCustomer.billingCycle || "MONTHLY",
+        billingCycleValue: currentCustomer.billingCycleValue || 1,
+        monthlyAdditionalCharge: currentCustomer.monthlyAdditionalCharge || 0,
+        monthlyDiscount: currentCustomer.monthlyDiscount || 0,
+        chargeDiscountMode:
+          (currentCustomer.monthlyDiscount || 0) > 0 ? "DISCOUNT" : "CHARGE",
+        gstType: currentCustomer.gstType || "NONE",
+        fixedBillAmount: currentCustomer.fixedBillAmount || "",
         isActive: currentCustomer.isActive !== undefined ? currentCustomer.isActive : true,
         
         // Hardware Details - Use transformed data or fallback to raw data
@@ -167,11 +196,6 @@ const CustomerEdit = () => {
           (currentCustomer.subscription?.planId || currentCustomer.Subscriptions?.[0]?.planId).toString() : "",
         startDate: formatDateForInput(currentCustomer.subscription?.startDate || currentCustomer.Subscriptions?.[0]?.startDate),
         agreedMonthlyPrice: currentCustomer.subscription?.agreedMonthlyPrice || currentCustomer.Subscriptions?.[0]?.agreedMonthlyPrice || 0,
-        billingType: currentCustomer.subscription?.billingType || currentCustomer.Subscriptions?.[0]?.billingType || "PREPAID",
-        billingCycle: currentCustomer.subscription?.billingCycle || currentCustomer.Subscriptions?.[0]?.billingCycle || "MONTHLY",
-        billingCycleValue: currentCustomer.subscription?.billingCycleValue || currentCustomer.Subscriptions?.[0]?.billingCycleValue || 1,
-        additionalCharge: currentCustomer.subscription?.additionalCharge || currentCustomer.Subscriptions?.[0]?.additionalCharge || 0,
-        discount: currentCustomer.subscription?.discount || currentCustomer.Subscriptions?.[0]?.discount || 0,
         status: currentCustomer.subscription?.status || currentCustomer.Subscriptions?.[0]?.status || "ACTIVE",
       };
       
@@ -264,26 +288,44 @@ const CustomerEdit = () => {
           installationDate: data.installationDate,
           securityDeposit: parseFloat(data.securityDeposit),
           gstNumber: data.gstNumber,
-          advance: parseInt(data.advance),
           remarks: data.remarks,
           isActive: data.isActive,
+          latitude: data.latitude,
+          longitude: data.longitude,
+          billingStartDate: data.billingStartDate,
+          openingBalance: parseFloat(data.openingBalance) || 0,
+          openingBalanceType: data.openingBalanceType,
+          billingType: data.billingType,
+          billingCycle: data.billingCycle,
+          billingCycleValue: parseInt(data.billingCycleValue, 10) || 1,
+          monthlyAdditionalCharge:
+            data.chargeDiscountMode === "DISCOUNT"
+              ? 0
+              : parseFloat(data.monthlyAdditionalCharge) || 0,
+          monthlyDiscount:
+            data.chargeDiscountMode === "DISCOUNT"
+              ? parseFloat(data.monthlyDiscount) || 0
+              : 0,
+          gstType: data.gstType,
+          fixedBillAmount: data.fixedBillAmount
+            ? parseFloat(data.fixedBillAmount)
+            : null,
         },
         hardware: {
           deviceType: data.deviceType,
           macAddress: data.macAddress,
           ipAddress: data.ipAddress,
+          membershipNumber: data.membershipNumber,
         },
-        subscription: {
-          planId: parseInt(data.planId),
-          startDate: data.startDate,
-          agreedMonthlyPrice: parseFloat(data.agreedMonthlyPrice),
-          billingType: data.billingType,
-          billingCycle: data.billingCycle,
-          billingCycleValue: parseInt(data.billingCycleValue),
-          additionalCharge: parseFloat(data.additionalCharge),
-          discount: parseFloat(data.discount),
-          status: data.status,
-        },
+        planLines: data.planId
+          ? [
+              {
+                planId: parseInt(data.planId, 10),
+                quantity: 1,
+                agreedMonthlyPrice: parseFloat(data.agreedMonthlyPrice),
+              },
+            ]
+          : [],
       };
 
       await editCustomer(id, customerData);
@@ -568,17 +610,6 @@ const CustomerEdit = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Advance Payment
-                  </label>
-                  <input
-                    type="number"
-                    {...register("advance", { min: 0 })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Status
                   </label>
                   <select
@@ -760,7 +791,7 @@ const CustomerEdit = () => {
                   <input
                     type="number"
                     step="0.01"
-                    {...register("additionalCharge", { min: 0 })}
+                    {...register("monthlyAdditionalCharge", { min: 0 })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
@@ -772,7 +803,7 @@ const CustomerEdit = () => {
                   <input
                     type="number"
                     step="0.01"
-                    {...register("discount", { min: 0 })}
+                    {...register("monthlyDiscount", { min: 0 })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>

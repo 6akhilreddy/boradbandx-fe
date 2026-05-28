@@ -50,13 +50,15 @@ const useCustomerStore = create((set, get) => ({
   addCustomer: async (data) => {
     set({ loading: true, error: null });
     try {
-      await createCustomer(data);
+      const created = await createCustomer(data);
       // Refresh the current page
       const { pagination } = get();
       await get().fetchCustomers({
         page: pagination.currentPage,
         limit: pagination.pageSize,
       });
+      set({ loading: false });
+      return created;
     } catch (err) {
       set({ error: err.message, loading: false });
       throw err;
