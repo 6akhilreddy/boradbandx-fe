@@ -4,6 +4,10 @@ import { Search, Plus, X, Folder, ChevronLeft, ChevronRight } from "lucide-react
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
 const DEFAULT_PAGE_SIZE = 10;
 
+const preventEnterSubmit = (e) => {
+  if (e.key === "Enter") e.preventDefault();
+};
+
 const CustomerPlansTab = ({
   plans,
   selectedPlans,
@@ -139,6 +143,7 @@ const CustomerPlansTab = ({
               placeholder="Search for..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={preventEnterSubmit}
               className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
             />
             <button
@@ -158,14 +163,14 @@ const CustomerPlansTab = ({
           </div>
 
           <div className="overflow-x-auto border border-gray-200 rounded-lg">
-            <table className="w-full text-sm">
+            <table className="bbx-table-grid w-full text-sm border-collapse">
               <thead className="bg-gray-50 text-blue-700 border-b border-gray-200">
                 <tr>
-                  <th className="px-3 py-2.5 text-left font-medium">S.No</th>
-                  <th className="px-3 py-2.5 text-left font-medium">Name</th>
-                  <th className="px-3 py-2.5 text-left font-medium">Price</th>
-                  <th className="px-3 py-2.5 text-left font-medium">Quantity</th>
-                  <th className="px-3 py-2.5 text-center font-medium">Action</th>
+                  <th className="px-3 py-2.5 text-left font-medium border border-gray-200">S.No</th>
+                  <th className="px-3 py-2.5 text-left font-medium border border-gray-200">Name</th>
+                  <th className="px-3 py-2.5 text-left font-medium border border-gray-200">Price</th>
+                  <th className="px-3 py-2.5 text-left font-medium border border-gray-200">Quantity</th>
+                  <th className="px-3 py-2.5 text-center font-medium border border-gray-200">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -174,21 +179,18 @@ const CustomerPlansTab = ({
                     key={plan.id}
                     className="border-t border-gray-100 hover:bg-gray-50/80 even:bg-gray-50/30"
                   >
-                    <td className="px-3 py-2">
+                    <td className="px-3 py-2 border border-gray-200">
                       <span className="inline-block px-2 py-0.5 bg-gray-900 text-white text-xs rounded">
                         {plan.id}
                       </span>
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="px-3 py-2 border border-gray-200">
                       <div className="flex items-center justify-between gap-2 min-w-[180px]">
                         <span>{plan.name}</span>
-                        <span className="text-xs text-gray-400 whitespace-nowrap">
-                          Bouquet (0)
-                        </span>
                       </div>
                     </td>
-                    <td className="px-3 py-2">{plan.monthlyPrice ?? 0}</td>
-                    <td className="px-3 py-2">
+                    <td className="px-3 py-2 border border-gray-200">{plan.monthlyPrice ?? 0}</td>
+                    <td className="px-3 py-2 border border-gray-200">
                       <input
                         type="number"
                         min="1"
@@ -200,10 +202,11 @@ const CustomerPlansTab = ({
                             [plan.id]: e.target.value,
                           }))
                         }
+                        onKeyDown={preventEnterSubmit}
                         className="w-16 px-2 py-1 border border-gray-300 rounded text-center text-sm"
                       />
                     </td>
-                    <td className="px-3 py-2 text-center">
+                    <td className="px-3 py-2 text-center border border-gray-200">
                       <button
                         type="button"
                         onClick={() => handleAdd(plan)}
@@ -294,6 +297,7 @@ const CustomerPlansTab = ({
             min="0"
             value={fixedBillAmount}
             onChange={(e) => onFixedBillAmountChange(e.target.value)}
+            onKeyDown={preventEnterSubmit}
             className="w-full max-w-xs mx-auto px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
             placeholder="0"
           />

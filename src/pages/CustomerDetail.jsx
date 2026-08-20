@@ -1419,7 +1419,7 @@ const CustomerDetail = () => {
               <div className="p-6 text-center text-red-600">{balanceHistory.error}</div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full">
+                <table className="bbx-table-grid w-full">
                   <thead className="bg-gray-50 border-b border-gray-200">
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200">
@@ -2294,7 +2294,7 @@ const CustomerDetail = () => {
           Hardware Details
         </h2>
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
+          <table className="bbx-table-grid w-full border-collapse">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200">
@@ -2447,7 +2447,7 @@ const CustomerDetail = () => {
                     <p className="text-gray-500">-</p>
                   </div>
                   <div className="mb-8">
-                    <table className="w-full border-collapse border border-gray-300">
+                    <table className="bbx-table-grid w-full border-collapse border border-gray-300">
                       <thead>
                         <tr className="bg-gray-100">
                           <th className="border border-gray-300 px-4 py-2 text-left">Details</th>
@@ -2766,7 +2766,7 @@ const CustomerDetail = () => {
 
                 {/* Plans List */}
                 <div className="flex-1 overflow-y-auto p-6">
-                  <table className="w-full">
+                  <table className="bbx-table-grid w-full">
                     <thead>
                       <tr className="border-b border-gray-200">
                         <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase">S.No</th>
@@ -2960,7 +2960,7 @@ const CustomerDetail = () => {
 
               {/* Items Table */}
               <div className="mb-6">
-                <table className="w-full border-collapse">
+                <table className="bbx-table-grid w-full border-collapse">
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-200">
                       <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase">S.No.</th>

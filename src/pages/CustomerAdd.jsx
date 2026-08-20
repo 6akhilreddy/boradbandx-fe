@@ -314,6 +314,8 @@ const CustomerAdd = () => {
     );
   }
 
+  const handleCreateCustomerClick = handleSubmit(onSubmit);
+
   return (
     <Layout>
       <div className="max-w-7xl mx-auto p-4">
@@ -338,7 +340,7 @@ const CustomerAdd = () => {
           </div>
         )}
 
-        <form onSubmit={handleSubmit(onSubmit)}>
+        <form onSubmit={(e) => e.preventDefault()}>
           <div className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
             <div className="flex flex-wrap gap-1 p-3 border-b border-gray-200 bg-gray-50/50">
               {TABS.map((tab) => (
@@ -554,7 +556,8 @@ const CustomerAdd = () => {
               </div>
             ) : (
               <button
-                type="submit"
+                type="button"
+                onClick={handleCreateCustomerClick}
                 disabled={!canCreateCustomer()}
                 title={
                   !canCreateCustomer()

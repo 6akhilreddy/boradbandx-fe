@@ -128,7 +128,7 @@ const Supervisors = () => {
         <Spinner loadingTxt="Loading supervisors..." />
       ) : (
         <div className="bg-white rounded-xl shadow overflow-x-auto">
-          <table className="min-w-full text-sm">
+          <table className="bbx-table-grid min-w-full text-sm">
             <thead className="bg-gray-50 text-gray-600">
               <tr>
                 <th className="px-4 py-3 text-left">Name</th>

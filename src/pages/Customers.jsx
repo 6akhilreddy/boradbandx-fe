@@ -429,7 +429,7 @@ const Customers = () => {
           <div className="hidden lg:block">
             <div className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-200">
               <div className="overflow-x-auto">
-                <table className="w-full border-collapse">
+                <table className="bbx-table-grid w-full border-collapse">
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-200">
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200">

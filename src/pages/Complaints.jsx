@@ -480,7 +480,7 @@ const Complaints = () => {
           ) : (
             <>
               <div className="overflow-x-auto">
-                <table className="min-w-full border-collapse border border-gray-300">
+                <table className="bbx-table-grid min-w-full border-collapse border border-gray-300">
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase border border-gray-300">
@@ -773,7 +773,7 @@ const AddComplaintModal = ({
             {/* Search Results */}
             {customerSearchResults.length > 0 && (
               <div className="mt-2 border border-gray-200 rounded-lg max-h-48 overflow-y-auto">
-                <table className="min-w-full divide-y divide-gray-200">
+                <table className="bbx-table-grid min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">#</th>
@@ -1038,7 +1038,7 @@ const CommentModal = ({
               <p className="text-gray-500 text-center py-4">No comments yet</p>
             ) : (
               <div className="border border-gray-300 rounded-lg overflow-hidden">
-                <table className="min-w-full border-collapse">
+                <table className="bbx-table-grid min-w-full border-collapse">
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase border border-gray-300">

@@ -1,1 +1,10 @@
 @import "tailwindcss";
+
+/* Consistent table grid lines across the app */
+.bbx-table-grid {
+  border-collapse: collapse;
+}
+.bbx-table-grid th,
+.bbx-table-grid td {
+  border: 1px solid rgb(229 231 235); /* gray-200 */
+}

@@ -1366,7 +1366,7 @@ const Reports = () => {
                         <>
                           {/* Desktop Table */}
                           <div className="hidden lg:block overflow-x-auto">
-                            <table className="w-full border-collapse">
+                            <table className="bbx-table-grid w-full border-collapse">
                               <thead>
                                 <tr className="border-b border-gray-200">
                                   <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">#</th>
@@ -1640,7 +1640,7 @@ const Reports = () => {
 
                     {/* Invoice Items */}
                     <div className="mb-8">
-                      <table className="w-full border-collapse border border-gray-300">
+                      <table className="bbx-table-grid w-full border-collapse border border-gray-300">
                         <thead>
                           <tr className="bg-gray-100">
                             <th className="border border-gray-300 px-4 py-2 text-left">Description</th>

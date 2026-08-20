@@ -272,7 +272,7 @@ const SuperAdminDashboard = () => {
             <p className="text-red-500 text-center">{companyError}</p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
+              <table className="bbx-table-grid min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Company</th>
@@ -447,7 +447,7 @@ function CompanyBlock({
                 <p className="text-red-500">{companyAdmins.error}</p>
               ) : (
                 <div className="overflow-x-auto rounded-xl border border-indigo-100 bg-white">
-                  <table className="min-w-full divide-y divide-gray-200">
+                  <table className="bbx-table-grid min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-100/70">
                       <tr>
                         <th className="px-3 py-2 text-xs text-gray-600 text-left uppercase">Name</th>

@@ -309,7 +309,7 @@ const Collection = () => {
                     {/* Row 1: Summary Table */}
                     <div className="mb-2">
                       <div className="overflow-x-auto">
-                        <table className="min-w-full text-xs">
+                        <table className="bbx-table-grid min-w-full text-xs">
                           <thead className="bg-gray-50">
                             <tr>
                               <th className="px-3 py-2 text-left font-medium text-gray-700 border border-gray-200">Customer</th>
@@ -347,7 +347,7 @@ const Collection = () => {
                               </div>
                               <div className="p-3">
                                 <div className="overflow-x-auto">
-                                  <table className="min-w-full text-xs">
+                                  <table className="bbx-table-grid min-w-full text-xs">
                                     <thead className="bg-gray-50">
                                       <tr>
                                         <th className="px-2 py-1.5 text-left font-medium text-gray-700 border border-gray-200">Mode</th>
@@ -391,7 +391,7 @@ const Collection = () => {
                           </div>
                           <div className="p-3 flex-1 overflow-auto">
                             <div className="overflow-x-auto">
-                              <table className="min-w-full text-xs">
+                              <table className="bbx-table-grid min-w-full text-xs">
                                 <thead className="bg-gray-50 sticky top-0">
                                   <tr>
                                     <th className="px-2 py-1.5 text-left font-medium text-gray-700 border border-gray-200">Name</th>
