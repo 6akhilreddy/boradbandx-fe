@@ -1,50 +1,43 @@
-# React + TypeScript + Vite
+# BroadbandX Frontend UI
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+BroadbandX Customer & Billing Management System frontend built with React, Vite, Tailwind CSS, and Zustand.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Deployments & Domains
 
-## Expanding the ESLint configuration
+- **Dev Frontend (CNAME)**: [https://broadbandx.vercel.app](https://broadbandx.vercel.app)
+- **Dev Backend API**: [https://broadbandx-be.vercel.app/api](https://broadbandx-be.vercel.app/api)
+- **Local Dev Frontend**: `http://localhost:5173`
+- **Local Dev Backend**: `http://localhost:3000/api`
 
-If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
+---
 
-- Configure the top-level `parserOptions` property like this:
+## API Base URL Configuration
 
-```js
-export default tseslint.config({
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
+The frontend dynamically resolves the backend API URL in `src/config/urls.js`:
+
+1. **Custom Override**: Set `VITE_API_URL` environment variable if you want to explicitly override the backend endpoint.
+2. **Deployed / Vercel (`broadbandx.vercel.app`)**:
+   - Automatically routes to `https://broadbandx-be.vercel.app/api` when accessed from any non-localhost domain or in production builds.
+3. **Local Development (`localhost` / `127.0.0.1`)**:
+   - Defaults to `http://localhost:3000/api`.
+
+---
+
+## Getting Started
+
+### Install Dependencies
+```bash
+npm install
 ```
 
-- Replace `tseslint.configs.recommended` to `tseslint.configs.recommendedTypeChecked` or `tseslint.configs.strictTypeChecked`
-- Optionally add `...tseslint.configs.stylisticTypeChecked`
-- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and update the config:
+### Run Locally
+```bash
+npm run dev
+```
 
-```js
-// eslint.config.js
-import react from 'eslint-plugin-react'
-
-export default tseslint.config({
-  // Set the react version
-  settings: { react: { version: '18.3' } },
-  plugins: {
-    // Add the react plugin
-    react,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended rules
-    ...react.configs.recommended.rules,
-    ...react.configs['jsx-runtime'].rules,
-  },
-})
+### Build for Production
+```bash
+npm run build
 ```
