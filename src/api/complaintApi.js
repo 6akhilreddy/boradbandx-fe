@@ -11,16 +11,6 @@ export const getComplaints = async (params = {}) => {
   }
 };
 
-export const getComplaintById = async (id) => {
-  try {
-    const response = await axiosInstance.get(`${URLS.COMPLAINTS}/${id}`);
-    return response.data;
-  } catch (error) {
-    console.error("Get complaint by id failed:", error);
-    throw error;
-  }
-};
-
 export const createComplaint = async (data) => {
   try {
     const response = await axiosInstance.post(URLS.COMPLAINTS, data);
@@ -51,12 +41,12 @@ export const deleteComplaint = async (id) => {
   }
 };
 
-export const searchCustomers = async (search) => {
+export const searchCustomers = async (query) => {
   try {
     const response = await axiosInstance.get(
       `${URLS.COMPLAINTS}/search-customers`,
       {
-        params: { search },
+        params: { search: query },
       }
     );
     return response.data;
@@ -66,10 +56,10 @@ export const searchCustomers = async (search) => {
   }
 };
 
-export const getComplaintComments = async (complaintId) => {
+export const getComplaintComments = async (id) => {
   try {
     const response = await axiosInstance.get(
-      `${URLS.COMPLAINTS}/${complaintId}/comments`
+      `${URLS.COMPLAINTS}/${id}/comments`
     );
     return response.data;
   } catch (error) {
@@ -78,13 +68,13 @@ export const getComplaintComments = async (complaintId) => {
   }
 };
 
-export const addComplaintComment = async (complaintId, comment) => {
+export const addComplaintComment = async (id, comment) => {
   try {
+    const payload =
+      typeof comment === "string" ? { comment } : comment;
     const response = await axiosInstance.post(
-      `${URLS.COMPLAINTS}/${complaintId}/comments`,
-      {
-        comment,
-      }
+      `${URLS.COMPLAINTS}/${id}/comments`,
+      payload
     );
     return response.data;
   } catch (error) {
@@ -93,10 +83,10 @@ export const addComplaintComment = async (complaintId, comment) => {
   }
 };
 
-export const deleteComplaintComment = async (complaintId, commentId) => {
+export const deleteComplaintComment = async (id, commentId) => {
   try {
     const response = await axiosInstance.delete(
-      `${URLS.COMPLAINTS}/${complaintId}/comments/${commentId}`
+      `${URLS.COMPLAINTS}/${id}/comments/${commentId}`
     );
     return response.data;
   } catch (error) {

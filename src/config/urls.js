@@ -26,4 +26,5 @@ export const URLS = {
   PAYMENTS: "/payments",
   DASHBOARD: "/dashboard",
   COMPLAINTS: "/complaints",
+  INVENTORY: "/inventory",
 };

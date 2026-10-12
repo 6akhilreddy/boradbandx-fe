@@ -147,7 +147,7 @@ export const AgentManageRoute = ({ children }) => (
 );
 
 export const CompanyManageRoute = ({ children }) => (
-  <ProtectedRoute requiredPermission="company.manage" fallbackRoute={ROUTES.UNAUTHORIZED}>
+  <ProtectedRoute requiredRole="SUPER_ADMIN" fallbackRoute={ROUTES.UNAUTHORIZED}>
     {children}
   </ProtectedRoute>
 );
@@ -195,6 +195,46 @@ export const ComplaintsRoute = ({ children }) => {
 
   if (!hasAccess) {
     console.warn("Access denied: User lacks complaints access");
+    return <Navigate to={ROUTES.UNAUTHORIZED} replace />;
+  }
+
+  return children;
+};
+
+// Inventory route - allows ADMIN/SUPER_ADMIN or inventory.view permission
+export const InventoryRoute = ({ children }) => {
+  const user = useUserStore((state) => state.user);
+  const token = useUserStore((state) => state.token);
+  const hasPermission = useUserStore((state) => state.hasPermission);
+  const hasRole = useUserStore((state) => state.hasRole);
+  const location = useLocation();
+
+  const isAuthenticated = !!(user && token);
+  if (isAuthenticated) {
+    const tokenValid = validateAndHandleToken();
+    if (!tokenValid) return null;
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to={ROUTES.LOGIN} state={{ from: location }} replace />;
+  }
+
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Spinner loadingTxt="Loading..." size="medium" />
+      </div>
+    );
+  }
+
+  const hasAccess =
+    hasPermission("inventory.view") ||
+    hasPermission("inventory.add") ||
+    hasRole("ADMIN") ||
+    hasRole("SUPER_ADMIN");
+
+  if (!hasAccess) {
+    console.warn("Access denied: User lacks inventory access");
     return <Navigate to={ROUTES.UNAUTHORIZED} replace />;
   }
 

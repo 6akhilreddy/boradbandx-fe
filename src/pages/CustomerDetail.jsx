@@ -444,36 +444,74 @@ const CustomerDetail = () => {
     }
   };
 
+  const pad2 = (n) => String(n).padStart(2, "0");
+
+  const parseDateParts = (dateInput) => {
+    if (!dateInput) return null;
+    if (typeof dateInput === "string") {
+      const datePart = dateInput.split("T")[0];
+      const match = datePart.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (match) {
+        return {
+          year: parseInt(match[1], 10),
+          month: parseInt(match[2], 10),
+          day: parseInt(match[3], 10),
+        };
+      }
+    }
+    const d = new Date(dateInput);
+    if (Number.isNaN(d.getTime())) return null;
+    return {
+      year: d.getUTCFullYear(),
+      month: d.getUTCMonth() + 1,
+      day: d.getUTCDate(),
+    };
+  };
+
+  const formatDateYMD = (year, month, day) => {
+    return `${year}-${pad2(month)}-${pad2(day)}`;
+  };
+
   // Calculate dates based on last bill date and period
   const calculateRenewDates = (baseDate, period) => {
     if (!baseDate) return { fromDate: "", toDate: "" };
-    
-    const lastBillDate = new Date(baseDate);
-    const fromDate = new Date(lastBillDate);
-    fromDate.setDate(fromDate.getDate() + 1); // Next day after last bill date
-    
-    const toDate = new Date(fromDate);
-    const periodMonths = parseInt(period) || 1;
-    toDate.setMonth(toDate.getMonth() + periodMonths);
-    toDate.setDate(toDate.getDate() - 1); // Last day of the period
-    
+
+    const parts = parseDateParts(baseDate);
+    if (!parts) return { fromDate: "", toDate: "" };
+
+    const fromUtc = new Date(Date.UTC(parts.year, parts.month - 1, parts.day + 1));
+    const fromYear = fromUtc.getUTCFullYear();
+    const fromMonth = fromUtc.getUTCMonth() + 1;
+    const fromDay = fromUtc.getUTCDate();
+
+    const periodMonths = parseInt(period, 10) || 1;
+    const targetMonth0 = fromMonth - 1 + periodMonths;
+    const targetLastDay = new Date(Date.UTC(fromYear, targetMonth0 + 1, 0)).getUTCDate();
+    const targetDay = Math.min(fromDay, targetLastDay);
+    const toUtc = new Date(Date.UTC(fromYear, targetMonth0, targetDay - 1));
+
     return {
-      fromDate: fromDate.toISOString().split("T")[0],
-      toDate: toDate.toISOString().split("T")[0],
+      fromDate: formatDateYMD(fromYear, fromMonth, fromDay),
+      toDate: formatDateYMD(toUtc.getUTCFullYear(), toUtc.getUTCMonth() + 1, toUtc.getUTCDate()),
     };
   };
 
   // Calculate dates from today based on period
   const calculateRenewDatesFromToday = (period) => {
     const today = new Date();
-    const toDate = new Date(today);
-    const periodMonths = parseInt(period) || 1;
-    toDate.setMonth(toDate.getMonth() + periodMonths);
-    toDate.setDate(toDate.getDate() - 1); // Last day of the period
-    
+    const fromYear = today.getFullYear();
+    const fromMonth = today.getMonth() + 1;
+    const fromDay = today.getDate();
+
+    const periodMonths = parseInt(period, 10) || 1;
+    const targetMonth0 = fromMonth - 1 + periodMonths;
+    const targetLastDay = new Date(Date.UTC(fromYear, targetMonth0 + 1, 0)).getUTCDate();
+    const targetDay = Math.min(fromDay, targetLastDay);
+    const toUtc = new Date(Date.UTC(fromYear, targetMonth0, targetDay - 1));
+
     return {
-      fromDate: today.toISOString().split("T")[0],
-      toDate: toDate.toISOString().split("T")[0],
+      fromDate: formatDateYMD(fromYear, fromMonth, fromDay),
+      toDate: formatDateYMD(toUtc.getUTCFullYear(), toUtc.getUTCMonth() + 1, toUtc.getUTCDate()),
     };
   };
 
@@ -522,9 +560,9 @@ const CustomerDetail = () => {
     // Priority 2: Use current subscriptions
     else if (currentCustomer?.subscriptions && currentCustomer.subscriptions.length > 0) {
       plansToUse = currentCustomer.subscriptions
-        .filter(sub => sub.plan && (sub.plan.monthlyPrice > 0 || sub.agreedMonthlyPrice > 0))
+        .filter(sub => sub.plan && (sub.plan.monthlyPrice > 0 || (sub.agreedMonthlyPrice !== null && sub.agreedMonthlyPrice > 0)))
         .map(sub => {
-          const price = sub.plan.monthlyPrice || sub.agreedMonthlyPrice || 0;
+          const price = sub.agreedMonthlyPrice != null ? sub.agreedMonthlyPrice : (sub.plan?.monthlyPrice || 0);
           return {
             id: sub.plan.id || sub.planId,
             name: sub.plan.name,
@@ -540,7 +578,9 @@ const CustomerDetail = () => {
     }
     // Priority 3: Use current subscription (backward compatibility)
     else if (currentCustomer?.subscription?.plan) {
-      const price = currentCustomer.subscription.plan.monthlyPrice || currentCustomer.subscription.agreedMonthlyPrice || 0;
+      const price = currentCustomer.subscription.agreedMonthlyPrice != null
+        ? currentCustomer.subscription.agreedMonthlyPrice
+        : (currentCustomer.subscription.plan.monthlyPrice || 0);
       if (price > 0) {
         plansToUse = [{
           id: currentCustomer.subscription.plan.id || currentCustomer.subscription.planId,
@@ -660,7 +700,7 @@ const CustomerDetail = () => {
           .map(sub => ({
             id: sub.plan.id || sub.planId,
             name: sub.plan.name,
-            monthlyPrice: sub.plan.monthlyPrice || sub.agreedMonthlyPrice,
+            monthlyPrice: sub.agreedMonthlyPrice != null ? sub.agreedMonthlyPrice : sub.plan.monthlyPrice,
             code: sub.plan.code,
           }));
         setSelectedPlans(currentPlans);
@@ -780,7 +820,7 @@ const CustomerDetail = () => {
   const calculateTotalPayment = () => {
     const amount = paymentAmount ? parseFloat(paymentAmount) : 0;
     const discount = paymentDiscount ? parseFloat(paymentDiscount) : 0;
-    return amount - discount;
+    return amount + discount;
   };
 
   const calculateNewBalance = () => {

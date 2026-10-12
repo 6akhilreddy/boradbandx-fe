@@ -32,6 +32,29 @@ const BalanceHistory = ({ customerId }) => {
     }
   };
 
+  const handleDeleteTransaction = async (transactionId) => {
+    if (
+      !window.confirm(
+        "Are you sure you want to delete this payment transaction? Only the latest transaction can be deleted."
+      )
+    ) {
+      return;
+    }
+    try {
+      setLoading(true);
+      await axiosInstance.delete(`/customers/transactions/${transactionId}`);
+      await fetchBalanceHistory();
+    } catch (err) {
+      console.error("Error deleting transaction:", err);
+      alert(
+        err.response?.data?.message ||
+          "Failed to delete transaction. Only the latest transaction can be deleted."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const getTransactionIcon = (type) => {
     switch (type) {
       case "PAYMENT":
@@ -138,13 +161,43 @@ const BalanceHistory = ({ customerId }) => {
   };
 
   const handleDownload = () => {
-    // TODO: Implement download functionality
-    console.log("Download balance history");
-  };
-
-  const handleDeleteTransaction = async (transactionId) => {
-    // TODO: Implement delete functionality
-    console.log("Delete transaction:", transactionId);
+    if (!transactions.length) {
+      alert("No transactions to download");
+      return;
+    }
+    const headers = [
+      "Type",
+      "Description",
+      "Date",
+      "Direction",
+      "Amount",
+      "Balance Before",
+      "Balance After",
+    ];
+    const rows = transactions.map((t) => [
+      t.type || "",
+      `"${(t.description || "").replace(/"/g, '""')}"`,
+      t.transactionDate
+        ? new Date(t.transactionDate).toLocaleDateString()
+        : "",
+      t.direction || "",
+      t.amount ?? 0,
+      t.balanceBefore ?? 0,
+      t.balanceAfter ?? 0,
+    ]);
+    const csvContent =
+      "data:text/csv;charset=utf-8," +
+      [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute(
+      "download",
+      `balance_history_${customerId || "customer"}.csv`
+    );
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   if (loading) {

@@ -9,13 +9,14 @@ import usePlanStore from "../store/planStore";
 import useAreaStore from "../store/areaStore";
 import useUserStore from "../store/userStore";
 import Spinner from "../components/Spinner";
-import { ArrowLeft, ArrowRight, Check, Plus, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Plus, X, Search, Trash2 } from "lucide-react";
 import FormRow from "../components/customer/FormRow";
 import CustomerGeneralTab from "../components/customer/CustomerGeneralTab";
 import CustomerBillingTab from "../components/customer/CustomerBillingTab";
 import CustomerPlansTab from "../components/customer/CustomerPlansTab";
 import { getNextBillingNumber } from "../api/customerApi";
 import { uploadCustomerDocuments } from "../api/customerApi";
+import { getAvailableInventory } from "../api/inventoryApi";
 
 const TABS = [
   { id: 1, title: "General Details" },
@@ -45,6 +46,13 @@ const CustomerAdd = () => {
   const [fixedBillAmount, setFixedBillAmount] = useState("");
   const [nextBillingNumber, setNextBillingNumber] = useState(null);
   const [billingNumberLoading, setBillingNumberLoading] = useState(true);
+
+  // Available inventory stock state
+  const [availableStock, setAvailableStock] = useState([]);
+  const [stockLoading, setStockLoading] = useState(false);
+  const [stockSearch, setStockSearch] = useState("");
+  const [addedHardwares, setAddedHardwares] = useState([]);
+  const [selectedStockId, setSelectedStockId] = useState(null);
 
   const { addCustomer } = useCustomerStore();
   const { agents, fetchAgents } = useAgentStore();
@@ -159,6 +167,75 @@ const CustomerAdd = () => {
     };
     fetchData();
   }, [fetchAgents, fetchPlans, fetchAreas]);
+
+  useEffect(() => {
+    const fetchStock = async () => {
+      try {
+        setStockLoading(true);
+        const res = await getAvailableInventory();
+        setAvailableStock(res.data || []);
+      } catch (err) {
+        console.error("Failed to load inventory stock", err);
+      } finally {
+        setStockLoading(false);
+      }
+    };
+    fetchStock();
+  }, []);
+
+  const filteredStock = availableStock.filter((s) => {
+    if (!stockSearch.trim()) return true;
+    const q = stockSearch.toLowerCase();
+    return (
+      (s.macAddress && s.macAddress.toLowerCase().includes(q)) ||
+      (s.ipAddress && s.ipAddress.toLowerCase().includes(q)) ||
+      (s.serialNumber && s.serialNumber.toLowerCase().includes(q)) ||
+      (s.deviceName && s.deviceName.toLowerCase().includes(q)) ||
+      (s.membershipNumber && s.membershipNumber.toLowerCase().includes(q))
+    );
+  });
+
+  const handleSelectStock = (stock) => {
+    setValue("deviceType", stock.category || "Router");
+    setValue("ipAddress", stock.ipAddress || "");
+    setValue("macAddress", stock.macAddress || "");
+    setValue("membershipNumber", stock.membershipNumber || "");
+    setSelectedStockId(stock.id);
+  };
+
+  const handleAddHardwareItem = () => {
+    const devType = watchedValues.deviceType || "Router";
+    const ip = watchedValues.ipAddress?.trim();
+    const mac = watchedValues.macAddress?.trim();
+    const mem = watchedValues.membershipNumber?.trim();
+
+    if (!mac && !ip) {
+      alert("Please provide at least a MAC address or IP address");
+      return;
+    }
+
+    setAddedHardwares((prev) => [
+      ...prev,
+      {
+        inventoryId: selectedStockId || null,
+        deviceType: devType,
+        ipAddress: ip || "",
+        macAddress: mac || "",
+        membershipNumber: mem || "",
+      },
+    ]);
+
+    // reset fields
+    setValue("deviceType", "Router");
+    setValue("ipAddress", "");
+    setValue("macAddress", "");
+    setValue("membershipNumber", "");
+    setSelectedStockId(null);
+  };
+
+  const handleRemoveHardwareItem = (idx) => {
+    setAddedHardwares((prev) => prev.filter((_, i) => i !== idx));
+  };
 
   useEffect(() => {
     documentsRef.current = documents;
@@ -276,12 +353,31 @@ const CustomerAdd = () => {
           gstType: data.gstType,
           fixedBillAmount: fixed,
         },
-        hardware: {
-          deviceType: data.deviceType,
-          macAddress: data.macAddress,
-          ipAddress: data.ipAddress,
-          membershipNumber: data.membershipNumber,
-        },
+        hardwareList:
+          addedHardwares.length > 0
+            ? addedHardwares
+            : data.macAddress || data.ipAddress
+            ? [
+                {
+                  inventoryId: selectedStockId,
+                  deviceType: data.deviceType || "Router",
+                  ipAddress: data.ipAddress,
+                  macAddress: data.macAddress,
+                  membershipNumber: data.membershipNumber,
+                },
+              ]
+            : [],
+        hardware:
+          addedHardwares[0] ||
+          (data.macAddress || data.ipAddress
+            ? {
+                inventoryId: selectedStockId,
+                deviceType: data.deviceType || "Router",
+                ipAddress: data.ipAddress,
+                macAddress: data.macAddress,
+                membershipNumber: data.membershipNumber,
+              }
+            : null),
         planLines,
       };
 
@@ -374,39 +470,184 @@ const CustomerAdd = () => {
               )}
 
               {activeTab === 2 && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8">
-                  <FormRow label="ROUTER">
-                    <input
-                      type="text"
-                      {...register("deviceType")}
-                      placeholder="Router"
-                      className={inputClass}
-                    />
-                  </FormRow>
-                  <FormRow label="IP">
-                    <input
-                      type="text"
-                      {...register("ipAddress")}
-                      placeholder="IP address"
-                      className={inputClass}
-                    />
-                  </FormRow>
-                  <FormRow label="MAC">
-                    <input
-                      type="text"
-                      {...register("macAddress")}
-                      placeholder="MAC"
-                      className={inputClass}
-                    />
-                  </FormRow>
-                  <FormRow label="MEMBERSHIP Number">
-                    <input
-                      type="text"
-                      {...register("membershipNumber")}
-                      placeholder="Membership/Account Number"
-                      className={inputClass}
-                    />
-                  </FormRow>
+                <div className="space-y-6">
+                  {/* Available Stock Section */}
+                  <div className="border border-gray-200 rounded-xl p-5 bg-white space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                      <h3 className="text-sm font-semibold text-gray-800">
+                        Available Stock
+                      </h3>
+                      <span className="text-xs text-gray-500 font-medium">
+                        {filteredStock.length} available items
+                      </span>
+                    </div>
+
+                    <div className="relative">
+                      <Search className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
+                      <input
+                        type="text"
+                        value={stockSearch}
+                        onChange={(e) => setStockSearch(e.target.value)}
+                        placeholder="Search router, IP, MAC, label, or reference"
+                        className="w-full pl-9 pr-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                      />
+                    </div>
+
+                    {/* Stock list */}
+                    <div className="border border-gray-100 rounded-lg divide-y divide-gray-100 max-h-48 overflow-y-auto bg-gray-50/40">
+                      {stockLoading ? (
+                        <div className="py-4 text-center text-xs text-gray-400">
+                          Loading available stock...
+                        </div>
+                      ) : filteredStock.length === 0 ? (
+                        <div className="py-4 text-center text-xs text-gray-400">
+                          No available hardware items found
+                        </div>
+                      ) : (
+                        filteredStock.map((stock) => (
+                          <div
+                            key={stock.id}
+                            className="flex items-center justify-between px-3 py-2 hover:bg-white transition text-xs"
+                          >
+                            <div className="font-mono">
+                              <span className="font-semibold text-rose-600">
+                                {stock.macAddress}
+                              </span>
+                              {stock.serialNumber && (
+                                <span className="text-gray-600 ml-1.5 font-sans">
+                                  Ref {stock.serialNumber}
+                                </span>
+                              )}
+                              {stock.ipAddress && (
+                                <span className="text-gray-500 ml-1.5 font-sans">
+                                  | {stock.ipAddress}
+                                </span>
+                              )}
+                              {stock.deviceName && (
+                                <span className="text-gray-400 ml-1.5 font-sans">
+                                  ({stock.deviceName})
+                                </span>
+                              )}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleSelectStock(stock)}
+                              className="px-3 py-1 bg-slate-700 hover:bg-slate-800 text-white rounded text-xs font-medium cursor-pointer shadow-xs transition"
+                            >
+                              Select
+                            </button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Hardware Input Form */}
+                  <div className="border border-gray-200 rounded-xl p-5 bg-white space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
+                          ROUTER
+                        </label>
+                        <input
+                          type="text"
+                          {...register("deviceType")}
+                          placeholder="Router"
+                          className={inputClass}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
+                          IP
+                        </label>
+                        <input
+                          type="text"
+                          {...register("ipAddress")}
+                          placeholder="IP address"
+                          className={inputClass}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
+                          MAC
+                        </label>
+                        <input
+                          type="text"
+                          {...register("macAddress")}
+                          placeholder="MAC"
+                          className={inputClass}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
+                          MEMBERSHIP Number
+                        </label>
+                        <input
+                          type="text"
+                          {...register("membershipNumber")}
+                          placeholder="Membership/Account Number"
+                          className={inputClass}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex justify-center pt-2">
+                      <button
+                        type="button"
+                        onClick={handleAddHardwareItem}
+                        className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-slate-700 hover:bg-slate-800 text-white rounded-lg text-xs font-medium shadow-xs transition cursor-pointer"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        Add
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Added Hardware Cards List */}
+                  {addedHardwares.length > 0 && (
+                    <div className="space-y-3">
+                      {addedHardwares.map((hw, idx) => (
+                        <div
+                          key={idx}
+                          className="border border-gray-200 rounded-xl p-4 bg-white relative shadow-xs flex flex-col gap-1.5 text-xs"
+                        >
+                          <div className="flex items-center justify-between pb-1 border-b border-gray-100">
+                            <span className="font-semibold text-gray-700 uppercase text-xs">
+                              {hw.deviceType || "ROUTER"}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveHardwareItem(idx)}
+                              className="text-gray-400 hover:text-rose-600 p-1 cursor-pointer transition"
+                              title="Remove hardware"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 text-gray-600 font-mono text-[11px] pt-1">
+                            <div>
+                              <span className="text-gray-400 font-sans uppercase mr-2">
+                                IP:
+                              </span>
+                              {hw.ipAddress || "-"}
+                            </div>
+                            <div>
+                              <span className="text-gray-400 font-sans uppercase mr-2">
+                                MAC:
+                              </span>
+                              {hw.macAddress || "-"}
+                            </div>
+                            <div>
+                              <span className="text-gray-400 font-sans uppercase mr-2">
+                                MEMBERSHIP NO:
+                              </span>
+                              {hw.membershipNumber || "-"}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 

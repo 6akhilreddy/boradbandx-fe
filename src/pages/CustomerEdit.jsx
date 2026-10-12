@@ -317,15 +317,29 @@ const CustomerEdit = () => {
           ipAddress: data.ipAddress,
           membershipNumber: data.membershipNumber,
         },
-        planLines: data.planId
-          ? [
-              {
-                planId: parseInt(data.planId, 10),
-                quantity: 1,
-                agreedMonthlyPrice: parseFloat(data.agreedMonthlyPrice),
-              },
-            ]
-          : [],
+        planLines:
+          currentCustomer?.subscriptions &&
+          currentCustomer.subscriptions.length > 1 &&
+          (!data.planId ||
+            data.planId.toString() ===
+              currentCustomer.subscriptions[0]?.planId?.toString())
+            ? currentCustomer.subscriptions.map((s) => ({
+                planId: parseInt(s.planId, 10),
+                quantity: s.quantity || 1,
+                agreedMonthlyPrice:
+                  s.agreedMonthlyPrice !== null
+                    ? parseFloat(s.agreedMonthlyPrice)
+                    : undefined,
+              }))
+            : data.planId
+            ? [
+                {
+                  planId: parseInt(data.planId, 10),
+                  quantity: 1,
+                  agreedMonthlyPrice: parseFloat(data.agreedMonthlyPrice),
+                },
+              ]
+            : [],
       };
 
       await editCustomer(id, customerData);

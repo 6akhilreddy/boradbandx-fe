@@ -12,6 +12,7 @@ import {
   X,
   Building,
   MessageSquare,
+  Boxes,
   ArrowLeft,
 } from "lucide-react";
 import useUserStore from "../store/userStore";
@@ -110,7 +111,7 @@ const Sidebar = () => {
       name: "Companies", 
       path: "/companies", 
       icon: Building, 
-      show: hasPermission("company.manage") 
+      show: isSuperAdmin() 
     },
     
     // Collection (Agents and Admins)
@@ -143,6 +144,14 @@ const Sidebar = () => {
       path: "/complaints", 
       icon: MessageSquare, 
       show: hasPermission("complaints.view") || hasPermission("complaint.add") || isAdmin() || isSuperAdmin() 
+    },
+
+    // Inventory
+    { 
+      name: "Inventory", 
+      path: "/inventory", 
+      icon: Boxes, 
+      show: hasPermission("inventory.view") || isAdmin() || isSuperAdmin() 
     },
   ];
 

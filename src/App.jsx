@@ -11,7 +11,8 @@ import ProtectedRoute, {
   SupervisorsManageRoute,
   SupervisorRoute,
   CompanyManageRoute,
-  ComplaintsRoute
+  ComplaintsRoute,
+  InventoryRoute,
 } from "./components/ProtectedRoute";
 import AdminDashboard from "./pages/AdminDashboard";
 import AgentDashboard from "./pages/AgentDashboard";
@@ -32,6 +33,7 @@ import Collection from "./pages/Collection";
 import Payments from "./pages/Payments";
 import Reports from "./pages/Reports";
 import Complaints from "./pages/Complaints";
+import Inventory from "./pages/Inventory";
 import useUserStore from "./store/userStore";
 import useTokenValidation from "./hooks/useTokenValidation";
 
@@ -77,6 +79,14 @@ function App() {
         {/* Super Admin Routes */}
         <Route
           path={routes.SUPER_ADMIN_DASHBOARD}
+          element={
+            <SuperAdminRoute>
+              <SuperAdminDashboard />
+            </SuperAdminRoute>
+          }
+        />
+        <Route
+          path={routes.COMPANIES}
           element={
             <SuperAdminRoute>
               <SuperAdminDashboard />
@@ -247,6 +257,16 @@ function App() {
             <ComplaintsRoute>
               <Complaints />
             </ComplaintsRoute>
+          }
+        />
+
+        {/* Inventory Routes */}
+        <Route
+          path="/inventory"
+          element={
+            <InventoryRoute>
+              <Inventory />
+            </InventoryRoute>
           }
         />
 
